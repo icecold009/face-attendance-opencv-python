@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import os
-import face_recognition
+import face_recognition  # type: ignore
 from PIL import Image
 from utils import create_directory, save_pickle, load_pickle
 

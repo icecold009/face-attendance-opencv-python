@@ -7,7 +7,7 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from face_recognition_module import FaceRecognitionSystem
+from basic_face_recognition import FaceRecognitionSystem
 from attendance import AttendanceSystem
 from utils import create_directory, resize_image, get_date
 
