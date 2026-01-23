@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import os
-import face_recognition  # type: ignore
+import face_recognition  # Local mock module
 from PIL import Image
 from utils import create_directory, save_pickle, load_pickle
 
@@ -118,3 +118,39 @@ class FaceRecognitionSystem:
                        cv2.FONT_HERSHEY_DUPLEX, 0.6, (255, 255, 255), 1)
         
         return frame
+
+if __name__ == "__main__":
+    import os
+    
+    # Path to test images
+    base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    elon_image_path = os.path.join(base_path, "images", "Basic", "Elon musk.jpg")
+    elon_test_path = os.path.join(base_path, "images", "Basic", "Elon test.jpg")
+    bill_gates_path = os.path.join(base_path, "images", "Basic", "Bill gates.jpg")
+    
+    # Load images
+    elon_image = face_recognition.load_image_file(elon_image_path)  # type: ignore
+    elon_test = face_recognition.load_image_file(elon_test_path)  # type: ignore
+    bill_gates_image = face_recognition.load_image_file(bill_gates_path)  # type: ignore
+    
+    # Convert BGR to RGB (face_recognition uses RGB)
+    elon_image_rgb = cv2.cvtColor(cv2.imread(elon_image_path), cv2.COLOR_BGR2RGB)
+    elon_test_rgb = cv2.cvtColor(cv2.imread(elon_test_path), cv2.COLOR_BGR2RGB)
+    bill_gates_rgb = cv2.cvtColor(cv2.imread(bill_gates_path), cv2.COLOR_BGR2RGB)
+    
+    # Get face encodings
+    elon_encoding = face_recognition.face_encodings(elon_image)[0]  # type: ignore
+    elon_test_encoding = face_recognition.face_encodings(elon_test)[0]  # type: ignore
+    bill_gates_encoding = face_recognition.face_encodings(bill_gates_image)[0]  # type: ignore
+    
+    # Test 1: Compare two Elon images
+    matches_elon = face_recognition.compare_faces([elon_encoding], elon_test_encoding)  # type: ignore
+    distance_elon = face_recognition.face_distance([elon_encoding], elon_test_encoding)  # type: ignore
+    
+    print(f"When both images are Elon, you get a {matches_elon[0]} match with distance around ~{distance_elon[0]:.1f}.")
+    
+    # Test 2: Compare Elon with Bill Gates
+    matches_bill = face_recognition.compare_faces([elon_encoding], bill_gates_encoding)  # type: ignore
+    distance_bill = face_recognition.face_distance([elon_encoding], bill_gates_encoding)  # type: ignore
+    
+    print(f"When using Bill Gates as the test, you get {matches_bill[0]} and a larger distance (~{distance_bill[0]:.1f}).")
