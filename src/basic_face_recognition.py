@@ -64,7 +64,6 @@ class FaceRecognitionSystem:
         face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
         
         face_names = []
-        face_distances = []
         
         for face_encoding in face_encodings:
             matches = face_recognition.compare_faces(
@@ -121,7 +120,7 @@ class FaceRecognitionSystem:
 
 if __name__ == "__main__":
     import os
-    
+    import sys
     # Path to test images
     base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     elon_image_path = os.path.join(base_path, "images", "Basic", "Elon musk.jpg")
@@ -139,9 +138,22 @@ if __name__ == "__main__":
     bill_gates_rgb = cv2.cvtColor(cv2.imread(bill_gates_path), cv2.COLOR_BGR2RGB)
     
     # Get face encodings
-    elon_encoding = face_recognition.face_encodings(elon_image)[0]  # type: ignore
-    elon_test_encoding = face_recognition.face_encodings(elon_test)[0]  # type: ignore
-    bill_gates_encoding = face_recognition.face_encodings(bill_gates_image)[0]  # type: ignore
+    elon_encodings = face_recognition.face_encodings(elon_image)  # type: ignore
+    elon_test_encodings = face_recognition.face_encodings(elon_test)  # type: ignore
+    bill_gates_encodings = face_recognition.face_encodings(bill_gates_image)  # type: ignore
+
+    if not elon_encodings or not elon_test_encodings or not bill_gates_encodings:
+        failed = [name for name, enc in [
+            ("Elon musk.jpg", elon_encodings),
+            ("Elon test.jpg", elon_test_encodings),
+            ("Bill gates.jpg", bill_gates_encodings),
+        ] if not enc]
+        print(f"Error: could not detect a face in: {', '.join(failed)}")
+        sys.exit(1)
+
+    elon_encoding = elon_encodings[0]
+    elon_test_encoding = elon_test_encodings[0]
+    bill_gates_encoding = bill_gates_encodings[0]
     
     # Test 1: Compare two Elon images
     matches_elon = face_recognition.compare_faces([elon_encoding], elon_test_encoding)  # type: ignore

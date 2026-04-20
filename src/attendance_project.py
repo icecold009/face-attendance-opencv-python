@@ -2,15 +2,25 @@ import cv2
 import numpy as np
 import face_recognition
 import os
+import sys
 from datetime import datetime
 
+# Resolve ImagesAttendance relative to the project root (parent of src/)
+SRC_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(SRC_DIR)
+sys.path.insert(0, SRC_DIR)
+
 # b. Load images and class names
-path = 'ImagesAttendance'
+path = os.path.join(PROJECT_ROOT, 'ImagesAttendance')
 images = []
 classNames = []
-myList = os.listdir(path)
+_IMAGE_EXTS = ('.jpg', '.jpeg', '.png', '.bmp', '.tiff')
+myList = [f for f in os.listdir(path) if f.lower().endswith(_IMAGE_EXTS)]
 for cls in myList:
     curImg = cv2.imread(os.path.join(path, cls))
+    if curImg is None:
+        print(f"Warning: could not read image '{cls}', skipping.")
+        continue
     images.append(curImg)
     classNames.append(os.path.splitext(cls)[0])
 
@@ -18,10 +28,13 @@ for cls in myList:
 # c. Define encoding function
 def findEncodings(images):
     encodeList = []
-    for img in images:
+    for idx, img in enumerate(images):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        encode = face_recognition.face_encodings(img)[0]
-        encodeList.append(encode)
+        encodings = face_recognition.face_encodings(img)
+        if not encodings:
+            print(f"Warning: no face found in enrollment image '{myList[idx]}', skipping.")
+            continue
+        encodeList.append(encodings[0])
     return encodeList
 
 
@@ -31,7 +44,7 @@ print("Encoding Complete")
 
 
 # e. Attendance CSV function
-attendance_dir = os.path.join('data', 'Attendance')
+attendance_dir = os.path.join(PROJECT_ROOT, 'data', 'Attendance')
 os.makedirs(attendance_dir, exist_ok=True)
 
 
@@ -58,6 +71,9 @@ cap = cv2.VideoCapture(0)
 # g. Real-time loop
 while True:
     success, img = cap.read()
+    if not success:
+        print("Warning: failed to capture frame, retrying...")
+        continue
     imgS = cv2.resize(img, (0, 0), None, 0.25, 0.25)
     imgS = cv2.cvtColor(imgS, cv2.COLOR_BGR2RGB)
 

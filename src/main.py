@@ -11,18 +11,23 @@ from basic_face_recognition import FaceRecognitionSystem
 from attendance import AttendanceSystem
 from utils import create_directory, resize_image, get_date
 
+# Project root is the parent directory of src/
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 class FaceAttendanceApp:
     def __init__(self):
-        self.face_recognition = FaceRecognitionSystem('encodings.pkl')
-        self.attendance = AttendanceSystem('data/Attendance')
+        encodings_path = os.path.join(PROJECT_ROOT, 'encodings.pkl')
+        attendance_path = os.path.join(PROJECT_ROOT, 'data', 'Attendance')
+        self.face_recognition = FaceRecognitionSystem(encodings_path)
+        self.attendance = AttendanceSystem(attendance_path)
         self.cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
         self.face_cascade = cv2.CascadeClassifier(self.cascade_path)
         self.running = True
         
         # Create necessary directories
-        create_directory('images/Basic')
-        create_directory('ImagesAttendance')
-        create_directory('data/Attendance')
+        create_directory(os.path.join(PROJECT_ROOT, 'images', 'Basic'))
+        create_directory(os.path.join(PROJECT_ROOT, 'ImagesAttendance'))
+        create_directory(os.path.join(PROJECT_ROOT, 'data', 'Attendance'))
     
     def enroll_new_person(self):
         """Enroll a new person"""
@@ -33,7 +38,7 @@ class FaceAttendanceApp:
             print("Name cannot be empty!")
             return
         
-        person_path = f'images/Basic/{name}'
+        person_path = os.path.join(PROJECT_ROOT, 'images', 'Basic', name)
         create_directory(person_path)
         
         print(f"Capturing images for {name}. Press 'c' to capture, 'q' to quit...")
@@ -107,7 +112,7 @@ class FaceAttendanceApp:
             
             # Mark attendance
             for name, confidence in face_names:
-                if confidence > 0.6:
+                if confidence >= 0.4:
                     self.attendance.mark_attendance(name)
             
             # Display info
