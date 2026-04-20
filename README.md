@@ -374,12 +374,6 @@ Jane,09:35:42,Present
 
 ---
 
-## 📋 License
-
-This project is licensed under the **MIT License** — see [LICENSE](LICENSE) file for details.
-
----
-
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to:
@@ -387,8 +381,6 @@ Contributions are welcome! Please feel free to:
 2. Create a feature branch
 3. Make your changes
 4. Submit a pull request
-
----
 
 ## 🚀 Future Enhancements
 
@@ -400,14 +392,6 @@ Contributions are welcome! Please feel free to:
 - [ ] Docker containerization
 - [ ] Mobile app companion
 - [ ] Real-time notifications
-
----
-
-## 📧 Support
-
-For issues, questions, or suggestions:
-- Open an [Issue](https://github.com/icecold009/face-attendance-opencv-python/issues)
-- Check [Discussions](https://github.com/icecold009/face-attendance-opencv-python/discussions)
 
 ---
 
@@ -424,18 +408,6 @@ For issues, questions, or suggestions:
 - [ ] Age and gender detection
 - [ ] Liveness detection to prevent spoofing
 - [ ] Mobile app integration
-
-## License
-
-This project is open source and available under the MIT License.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## Support
-
-For issues or questions, please open an issue on GitHub.
 
 ---
 
