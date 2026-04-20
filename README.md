@@ -6,9 +6,10 @@
 [![OpenCV](https://img.shields.io/badge/OpenCV-4.8+-red?style=flat&logo=opencv&logoColor=white)](https://opencv.org)
 [![Flask](https://img.shields.io/badge/Flask-2.0+-green?style=flat&logo=flask&logoColor=white)](https://flask.palletsprojects.com)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Active-brightgreen?style=flat)]()
+[![Status](https://img.shields.io/badge/Status-Completed-brightgreen?style=flat)]()
+[![Runs On](https://img.shields.io/badge/Runs%20On-Localhost-blue?style=flat&logo=firefox&logoColor=white)]()
 
-**A modern, local-first face recognition system for automatic attendance marking** 
+**A completed, local-first face recognition system for automatic attendance marking — runs entirely on localhost** 
 
 [Features](#features) • [Quick Start](#-quick-start) • [Web UI](#-web-ui) • [Installation](#-installation) • [Usage](#-usage)
 
@@ -391,9 +392,14 @@ Contributions are welcome! Please feel free to:
 - [ ] REST API for external integration
 - [ ] Docker containerization
 - [ ] Mobile app companion
-- [ ] Real-time notifications
+- [ ] Email/SMS notifications
+- [ ] Report generation (PDF/Excel)
+- [ ] Multi-face recognition in single frame
+- [ ] Age and gender detection
 
 ---
+
+**Created**: January 2026 | **Last Updated**: April 2026
 
 <div align="center">
 
@@ -402,14 +408,3 @@ Contributions are welcome! Please feel free to:
 ⭐ If you found this helpful, please consider starring the repository!
 
 </div>
-- [ ] Email/SMS notifications
-- [ ] Report generation (PDF/Excel)
-- [ ] Multi-face recognition in single frame
-- [ ] Age and gender detection
-- [ ] Liveness detection to prevent spoofing
-- [ ] Mobile app integration
-
----
-
-**Created**: January 2026
-**Last Updated**: January 22, 2026
