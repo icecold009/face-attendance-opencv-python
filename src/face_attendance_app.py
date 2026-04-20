@@ -47,8 +47,8 @@ class FaceAttendanceApp:
                 # Directory of images for one person
                 for img_file in os.listdir(person_path):
                     if img_file.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')):
+                        img_path = os.path.join(person_path, img_file)
                         try:
-                            img_path = os.path.join(person_path, img_file)
                             img = face_recognition.load_image_file(img_path)
                             encodings = face_recognition.face_encodings(img)
                             if encodings:
