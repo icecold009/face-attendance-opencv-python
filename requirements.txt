@@ -7,3 +7,4 @@ cmake
 dlib>=19.7
 click
 face-recognition-models
+flask>=2.0.0

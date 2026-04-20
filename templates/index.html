@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Attendance System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 1200px;
+            width: 100%;
+            padding: 30px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 28px;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .video-section,
+        .result-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            border: 2px solid #e9ecef;
+        }
+
+        .video-section h2,
+        .result-section h2 {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        #video {
+            width: 100%;
+            height: auto;
+            background: #000;
+            border-radius: 6px;
+            display: block;
+        }
+
+        #canvas {
+            display: none;
+        }
+
+        #result-image {
+            width: 100%;
+            height: auto;
+            background: #000;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .result-empty {
+            width: 100%;
+            height: 360px;
+            background: #000;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #888;
+            font-size: 14px;
+        }
+
+        .detected-names {
+            margin-top: 12px;
+            padding: 10px;
+            background: #fff;
+            border-radius: 4px;
+            min-height: 40px;
+            border: 1px solid #dee2e6;
+        }
+
+        .detected-names p {
+            color: #666;
+            font-size: 13px;
+            margin: 4px 0;
+        }
+
+        .detected-names .name {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 3px;
+            margin: 2px;
+            font-weight: 500;
+            font-size: 12px;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 30px;
+        }
+
+        button {
+            padding: 12px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #5568d3;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #218838;
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-info:hover:not(:disabled) {
+            background: #138496;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #c82333;
+        }
+
+        .status {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+            font-size: 14px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+            display: block;
+        }
+
+        .attendance-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            border: 2px solid #e9ecef;
+        }
+
+        .attendance-section h2 {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        tr:hover {
+            background: #f1f3f5;
+        }
+
+        .attendance-empty {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            animation: slideInDown 0.3s ease;
+        }
+
+        @keyframes slideInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 15px;
+        }
+
+        .modal-header h2 {
+            font-size: 20px;
+            margin: 0;
+        }
+
+        .close {
+            font-size: 28px;
+            font-weight: bold;
+            color: #aaa;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        input[type="text"],
+        input[type="email"] {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        input[type="text"]:focus,
+        input[type="email"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .enrollment-preview {
+            margin: 15px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .enrollment-preview img {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 4px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            opacity: 0.9;
+            letter-spacing: 0.5px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .controls {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 20px;
+            }
+
+            .modal-content {
+                width: 95%;
+                margin: 20% auto;
+            }
+        }
+
+        .loading {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>👤 Face Attendance System</h1>
+
+        <div id="status" class="status"></div>
+
+        <div class="controls">
+            <button id="startBtn" class="btn-primary">Start Recognition</button>
+            <button id="stopBtn" class="btn-danger" disabled>Stop Recognition</button>
+            <button id="enrollBtn" class="btn-success">Enroll New Person</button>
+            <button id="attendanceBtn" class="btn-info">View Attendance</button>
+        </div>
+
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-value" id="enrolledCount">0</div>
+                <div class="stat-label">Enrolled People</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="attendanceCount">0</div>
+                <div class="stat-label">Today's Attendance</div>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <div class="video-section">
+                <h2>Live Video</h2>
+                <video id="video" autoplay playsinline muted></video>
+            </div>
+            <div class="result-section">
+                <h2>Recognition Result</h2>
+                <div id="resultContainer" class="result-empty">Waiting for frames...</div>
+                <img id="result-image" alt="Result">
+                <div class="detected-names" id="detectedNames">
+                    <p>No faces detected yet</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="attendance-section">
+            <h2>📋 Today's Attendance</h2>
+            <button id="refreshAttendanceBtn" class="btn-info" style="margin-bottom: 15px;">Refresh</button>
+            <div id="attendanceTableContainer"></div>
+        </div>
+    </div>
+
+    <!-- Enrollment Modal -->
+    <div id="enrollModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Enroll New Person</h2>
+                <span class="close" id="closeModal">&times;</span>
+            </div>
+            <div class="form-group">
+                <label for="enrollName">Person Name:</label>
+                <input type="text" id="enrollName" placeholder="Enter full name" required>
+            </div>
+            <div class="enrollment-preview" id="enrollmentPreview" style="display: none;">
+                <img id="enrollmentImage" alt="Enrollment preview">
+            </div>
+            <div class="form-group">
+                <button id="captureEnrollBtn" class="btn-primary" style="width: 100%;">Capture Face for
+                    Enrollment</button>
+            </div>
+            <div class="form-group">
+                <button id="submitEnrollBtn" class="btn-success" style="width: 100%;" disabled>Submit
+                    Enrollment</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance Modal -->
+    <div id="attendanceModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Attendance Details</h2>
+                <span class="close" id="closeAttendanceModal">&times;</span>
+            </div>
+            <div id="attendanceModalContent"></div>
+        </div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        // State
+        let isRecognizing = false;
+        let recognitionInterval = null;
+        let enrollmentFrame = null;
+        const FPS = 5;
+        const FRAME_INTERVAL = 1000 / FPS;
+
+        // DOM Elements
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const resultImage = document.getElementById('result-image');
+        const resultContainer = document.getElementById('resultContainer');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const enrollBtn = document.getElementById('enrollBtn');
+        const attendanceBtn = document.getElementById('attendanceBtn');
+        const statusDiv = document.getElementById('status');
+        const detectedNamesDiv = document.getElementById('detectedNames');
+
+        // Modals
+        const enrollModal = document.getElementById('enrollModal');
+        const attendanceModal = document.getElementById('attendanceModal');
+        const closeModal = document.getElementById('closeModal');
+        const closeAttendanceModal = document.getElementById('closeAttendanceModal');
+
+        // Enrollment
+        const enrollName = document.getElementById('enrollName');
+        const captureEnrollBtn = document.getElementById('captureEnrollBtn');
+        const submitEnrollBtn = document.getElementById('submitEnrollBtn');
+        const enrollmentPreview = document.getElementById('enrollmentPreview');
+        const enrollmentImage = document.getElementById('enrollmentImage');
+
+        // Initialize webcam
+        async function initWebcam() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+                    audio: false
+                });
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                };
+                showStatus('Webcam initialized', 'success');
+            } catch (err) {
+                showStatus('Error accessing webcam: ' + err.message, 'error');
+            }
+        }
+
+        // Start recognition
+        function startRecognition() {
+            if (isRecognizing) return;
+            isRecognizing = true;
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            showStatus('Recognition started...', 'info');
+
+            let lastFrameTime = 0;
+
+            recognitionInterval = setInterval(async () => {
+                const now = performance.now();
+                if (now - lastFrameTime < FRAME_INTERVAL) return;
+                lastFrameTime = now;
+
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0);
+
+                    canvas.toBlob(async (blob) => {
+                        const reader = new FileReader();
+                        reader.onload = async (e) => {
+                            const base64 = e.target.result.split(',')[1];
+
+                            try {
+                                const response = await fetch('/recognize', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ frame: base64 })
+                                });
+
+                                const data = await response.json();
+                                if (data.success) {
+                                    resultImage.src = 'data:image/jpeg;base64,' + data.annotated_frame;
+                                    resultImage.style.display = 'block';
+                                    resultContainer.style.display = 'none';
+
+                                    if (data.recognized_names.length > 0) {
+                                        detectedNamesDiv.innerHTML = data.recognized_names
+                                            .map(name => `<span class="name">${name}</span>`)
+                                            .join('');
+                                    } else {
+                                        detectedNamesDiv.innerHTML = '<p>No faces detected</p>';
+                                    }
+                                }
+                            } catch (err) {
+                                console.error('Recognition error:', err);
+                            }
+                        };
+                        reader.readAsDataURL(blob);
+                    }, 'image/jpeg', 0.8);
+                }
+            }, 50);
+        }
+
+        // Stop recognition
+        function stopRecognition() {
+            if (!isRecognizing) return;
+            isRecognizing = false;
+            clearInterval(recognitionInterval);
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            showStatus('Recognition stopped', 'info');
+        }
+
+        // Show status message
+        function showStatus(message, type) {
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + type;
+            if (type !== 'error') {
+                setTimeout(() => statusDiv.style.display = 'none', 3000);
+            }
+        }
+
+        // Enroll modal handlers
+        enrollBtn.onclick = () => {
+            enrollName.value = '';
+            enrollmentFrame = null;
+            enrollmentPreview.style.display = 'none';
+            submitEnrollBtn.disabled = true;
+            enrollModal.style.display = 'block';
+        };
+
+        closeModal.onclick = () => enrollModal.style.display = 'none';
+
+        captureEnrollBtn.onclick = () => {
+            if (!video.readyState === video.HAVE_ENOUGH_DATA) {
+                showStatus('Webcam not ready', 'error');
+                return;
+            }
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+            enrollmentFrame = canvas.toDataURL('image/jpeg');
+
+            enrollmentImage.src = enrollmentFrame;
+            enrollmentPreview.style.display = 'block';
+            submitEnrollBtn.disabled = false;
+            showStatus('Face captured for enrollment', 'success');
+        };
+
+        submitEnrollBtn.onclick = async () => {
+            const name = enrollName.value.trim();
+            if (!name) {
+                showStatus('Please enter a name', 'error');
+                return;
+            }
+            if (!enrollmentFrame) {
+                showStatus('Please capture a face first', 'error');
+                return;
+            }
+
+            submitEnrollBtn.disabled = true;
+            const originalText = submitEnrollBtn.textContent;
+            submitEnrollBtn.textContent = 'Enrolling...';
+
+            try {
+                const base64 = enrollmentFrame.split(',')[1];
+                const response = await fetch('/enroll', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, frame: base64 })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showStatus(`${name} enrolled successfully!`, 'success');
+                    enrollModal.style.display = 'none';
+                    updateEnrolledCount();
+                } else {
+                    showStatus(data.message || 'Enrollment failed', 'error');
+                }
+            } catch (err) {
+                showStatus('Error: ' + err.message, 'error');
+            } finally {
+                submitEnrollBtn.disabled = false;
+                submitEnrollBtn.textContent = originalText;
+            }
+        };
+
+        // Attendance modal handlers
+        attendanceBtn.onclick = async () => {
+            attendanceModal.style.display = 'block';
+            await loadAttendance();
+        };
+
+        closeAttendanceModal.onclick = () => attendanceModal.style.display = 'none';
+
+        document.getElementById('refreshAttendanceBtn').onclick = loadAttendance;
+
+        async function loadAttendance() {
+            try {
+                const response = await fetch('/attendance');
+                const data = await response.json();
+
+                if (data.success) {
+                    displayAttendance(data.attendance, data.date);
+                    updateAttendanceCount(data.count);
+                }
+            } catch (err) {
+                showStatus('Error loading attendance: ' + err.message, 'error');
+            }
+        }
+
+        function displayAttendance(attendance, date) {
+            let html = `<h3>Date: ${date}</h3>`;
+
+            if (attendance.length === 0) {
+                html += '<div class="attendance-empty">No attendance recorded today</div>';
+            } else {
+                html += '<table>';
+                html += '<tr><th>Name</th><th>Time</th><th>Status</th></tr>';
+                attendance.forEach(record => {
+                    html += `<tr><td>${record.Name}</td><td>${record.Time}</td><td>${record.Status}</td></tr>`;
+                });
+                html += '</table>';
+            }
+
+            document.getElementById('attendanceModalContent').innerHTML = html;
+
+            let tableHtml = html;
+            if (attendance.length > 0) {
+                tableHtml = '<table><tr><th>Name</th><th>Time</th><th>Status</th></tr>';
+                attendance.slice(0, 5).forEach(record => {
+                    tableHtml += `<tr><td>${record.Name}</td><td>${record.Time}</td><td>${record.Status}</td></tr>`;
+                });
+                tableHtml += '</table>';
+                if (attendance.length > 5) {
+                    tableHtml += `<p style="text-align: center; color: #666; margin-top: 10px;">... and ${attendance.length - 5} more</p>`;
+                }
+            }
+            document.getElementById('attendanceTableContainer').innerHTML = tableHtml;
+        }
+
+        async function updateEnrolledCount() {
+            try {
+                const response = await fetch('/enrolled-persons');
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('enrolledCount').textContent = data.count;
+                }
+            } catch (err) {
+                console.error('Error updating enrolled count:', err);
+            }
+        }
+
+        function updateAttendanceCount(count) {
+            document.getElementById('attendanceCount').textContent = count;
+        }
+
+        // Close modals on background click
+        window.onclick = (event) => {
+            if (event.target === enrollModal) enrollModal.style.display = 'none';
+            if (event.target === attendanceModal) attendanceModal.style.display = 'none';
+        };
+
+        // Event listeners
+        startBtn.onclick = startRecognition;
+        stopBtn.onclick = stopRecognition;
+
+        // Initialize on page load
+        window.onload = () => {
+            initWebcam();
+            updateEnrolledCount();
+            loadAttendance();
+        };
+    </script>
+</body>
+
+</html>
