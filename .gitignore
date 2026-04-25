@@ -39,9 +39,13 @@ encodings.pkl
 *.csv
 .webcam_cache/
 
-# Image and video files (optional - uncomment if needed)
-# *.jpg
-# *.jpeg
-# *.png
-# *.mp4
-# *.avi
+# Ignore copyrighted face image datasets
+images/
+ImagesAttendance/
+
+# Image and video files
+*.jpg
+*.jpeg
+*.png
+*.mp4
+*.avi
