@@ -7,4 +7,5 @@ cmake
 dlib>=19.7
 click
 face-recognition-models
+face-recognition>=1.3.0
 flask>=2.0.0

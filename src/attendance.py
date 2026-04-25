@@ -1,15 +1,21 @@
-import pandas as pd
+from __future__ import annotations
+
 import os
+from typing import Optional, Set
+
+import pandas as pd
+
 from datetime import datetime
 from utils import get_date, get_timestamp, create_directory
 
+
 class AttendanceSystem:
-    def __init__(self, attendance_path='data/Attendance'):
+    def __init__(self, attendance_path: str = 'data/Attendance') -> None:
         self.attendance_path = attendance_path
         create_directory(attendance_path)
-        self.marked_today = set()
-    
-    def get_attendance_file(self):
+        self.marked_today: Set[str] = set()
+
+    def get_attendance_file(self) -> str:
         """Get or create attendance file for today"""
         date = get_date()
         filename = f"{self.attendance_path}/Attendance_{date}.csv"
@@ -20,7 +26,7 @@ class AttendanceSystem:
         
         return filename
     
-    def mark_attendance(self, name, status='Present'):
+    def mark_attendance(self, name: str, status: str = 'Present') -> bool:
         """Mark attendance for a person"""
         if name in self.marked_today or name == "Unknown":
             return False
@@ -43,7 +49,7 @@ class AttendanceSystem:
             print(f"Error marking attendance: {e}")
             return False
     
-    def get_attendance_summary(self):
+    def get_attendance_summary(self) -> Optional[pd.DataFrame]:
         """Get attendance summary for today"""
         filename = self.get_attendance_file()
         
@@ -54,11 +60,11 @@ class AttendanceSystem:
             print(f"Error reading attendance: {e}")
             return None
     
-    def reset_daily_marked(self):
+    def reset_daily_marked(self) -> None:
         """Reset marked attendance for the day"""
         self.marked_today = set()
     
-    def get_person_attendance_history(self, name, days=30):
+    def get_person_attendance_history(self, name: str, days: int = 30) -> Optional[pd.DataFrame]:
         """Get attendance history for a person"""
         records = []
         

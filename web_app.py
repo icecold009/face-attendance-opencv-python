@@ -1,10 +1,14 @@
+from __future__ import annotations
+
+import argparse
 import os
 import sys
 import base64
 import cv2
 import numpy as np
 from io import BytesIO
-from flask import Flask, render_template, request, jsonify
+from typing import Any
+from flask import Flask, render_template, request, jsonify, Response
 from datetime import datetime
 
 # Add src directory to path to import our modules
@@ -22,13 +26,13 @@ attendance_app = FaceAttendanceApp(
 
 
 @app.route('/')
-def index():
+def index() -> str:
     """Serve the main HTML page"""
     return render_template('index.html')
 
 
 @app.route('/recognize', methods=['POST'])
-def recognize():
+def recognize() -> Response:
     """
     Handle face recognition on a frame.
     Expects:
@@ -72,7 +76,7 @@ def recognize():
 
 
 @app.route('/enroll', methods=['POST'])
-def enroll():
+def enroll() -> Response:
     """
     Enroll a new person.
     Expects:
@@ -120,7 +124,7 @@ def enroll():
 
 
 @app.route('/attendance', methods=['GET'])
-def get_attendance():
+def get_attendance() -> Response:
     """
     Get today's attendance list.
     Returns:
@@ -140,7 +144,7 @@ def get_attendance():
 
 
 @app.route('/enrolled-persons', methods=['GET'])
-def get_enrolled_persons():
+def get_enrolled_persons() -> Response:
     """
     Get list of all enrolled persons.
     Returns:
@@ -158,12 +162,18 @@ def get_enrolled_persons():
 
 
 @app.route('/health', methods=['GET'])
-def health():
+def health() -> Response:
     """Health check endpoint"""
     return jsonify({'status': 'ok', 'timestamp': datetime.now().isoformat()})
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Face Attendance Web App')
+    parser.add_argument('--host', default='127.0.0.1', help='Host to bind (default: 127.0.0.1)')
+    parser.add_argument('--port', type=int, default=5000, help='Port to bind (default: 5000)')
+    parser.add_argument('--debug', action='store_true', help='Enable debug mode')
+    args = parser.parse_args()
+
     print("Starting Face Attendance Web App...")
-    print("Open http://localhost:5000 in your browser")
-    app.run(debug=True, host='127.0.0.1', port=5000)
+    print(f"Open http://{args.host}:{args.port} in your browser")
+    app.run(debug=args.debug, host=args.host, port=args.port)
