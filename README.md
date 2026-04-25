@@ -55,7 +55,7 @@ Perfect for modern browsers, real-time visual feedback, and team use.
 
 ```bash
 # 1. Install dependencies
-pip install flask
+pip install -r requirements.txt
 
 # 2. Run the web server
 python web_app.py
@@ -113,15 +113,18 @@ face-attendance-opencv-python/
 │   └── index.html                  # Web UI (vanilla JS)
 │
 ├── src/
-│   ├── face_attendance_app.py       # Core recognition engine
+│   ├── face_attendance_app.py       # Core recognition engine (web)
+│   ├── basic_face_recognition.py   # Alternate recognition engine (CLI)
 │   ├── attendance.py               # Attendance tracking
-│   ├── face_recognition.py         # Face encoding & matching
+│   ├── face_recognition.py         # Local face encoding & matching (no dlib)
 │   ├── utils.py                    # Utility functions
 │   └── main.py                     # CLI entry point
 │
 ├── ImagesAttendance/               # Enrollment images
+├── images/
+│   └── Basic/                      # Demo images for CLI mode
 ├── data/
-│   └── Attendance/                 # Daily CSV records
+│   └── Attendance/                 # Daily CSV records (auto-created)
 │
 ├── requirements.txt                # Dependencies
 └── README.md                       # This file
@@ -157,8 +160,6 @@ source .venv/bin/activate
 ```bash
 pip install -r requirements.txt
 ```
-
-**Note**: First install of `dlib` may take 5-10 minutes. This is normal.
 
 ---
 
@@ -239,7 +240,7 @@ Detect Faces (Haar Cascade)
     ↓
 Extract Face Regions
     ↓
-Generate 128-D Encodings (SIFT features)
+Generate 128-D Encodings (HOG-based gradient features)
     ↓
 Compare with Known Encodings
     ↓
@@ -295,9 +296,12 @@ Format:
 ## 🐛 Troubleshooting
 
 ### "No module named 'face_recognition'"
+The project ships its own local `src/face_recognition.py` module (no installation needed).
+If you see this error, make sure you are running the app from the repository root so that
+`src/` is on the Python path, or run via the provided entry points:
 ```bash
-pip install face-recognition
-# Note: First install takes 5-10 minutes
+python web_app.py        # web UI
+cd src && python main.py # CLI
 ```
 
 ### Webcam not detected
@@ -346,13 +350,13 @@ ngrok http 5000
 ```
 opencv-python==4.8.1.78       # Computer vision
 numpy==1.24.3                 # Numerical computing
-face-recognition-models       # Pre-trained models
-face-recognition              # Face detection & encoding
-dlib>=19.7                     # Face detection backend
 flask>=2.0.0                  # Web server
 pandas>=2.0.3                 # Data handling
 Pillow>=10.0.0                # Image processing
 ```
+
+> **No heavy external dependencies**: face recognition runs via a built-in local module
+> (`src/face_recognition.py`) using OpenCV Haar cascades + HOG features — no dlib or cloud APIs required.
 
 ---
 
