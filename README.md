@@ -7,6 +7,7 @@
 [![Flask](https://img.shields.io/badge/Flask-2.0+-green?style=flat&logo=flask&logoColor=white)](https://flask.palletsprojects.com)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Active-brightgreen?style=flat)]()
+[![CI](https://github.com/icecold009/face-attendance-opencv-python/actions/workflows/ci.yml/badge.svg)](https://github.com/icecold009/face-attendance-opencv-python/actions/workflows/ci.yml)
 
 **A modern, local-first face recognition system for automatic attendance marking** 
 
@@ -90,12 +91,15 @@ python main.py
 - **Cost**: $0 (runs entirely on your machine)
 
 ### Screenshots
-```
-Dashboard: Start/Stop Recognition, Enroll, View Attendance
-Live Feed: Video + Annotated Results side-by-side
-Detection: Green boxes for recognized faces, red for unknown
-Enrollment: Capture → Submit → Automatic encoding
-```
+
+| Screen | Description |
+|--------|-------------|
+| **Dashboard** | Start/Stop recognition, enroll new people, view live attendance stats |
+| **Live Feed** | Side-by-side: raw webcam video + annotated recognition results |
+| **Detection** | Green bounding boxes for recognised faces, red for unknown visitors |
+| **Enrollment** | Step-by-step: capture → enter name → submit → encoding saved automatically |
+
+> 💡 Run the app locally and capture your own screenshots to add here!
 
 ---
 
@@ -318,7 +322,7 @@ pip install face-recognition
 
 ### Local Network Access
 ```bash
-# Run with host='0.0.0.0'
+# Run with --host 0.0.0.0
 python web_app.py --host 0.0.0.0
 # Access from: http://YOUR_IP:5000
 ```
@@ -376,7 +380,8 @@ Jane,09:35:42,Present
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to:
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and guidelines.
+
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
@@ -392,6 +397,9 @@ Contributions are welcome! Please feel free to:
 - [ ] Docker containerization
 - [ ] Mobile app companion
 - [ ] Real-time notifications
+- [ ] Email/SMS notifications
+- [ ] Report generation (PDF/Excel)
+- [ ] Age and gender detection
 
 ---
 
@@ -402,14 +410,3 @@ Contributions are welcome! Please feel free to:
 ⭐ If you found this helpful, please consider starring the repository!
 
 </div>
-- [ ] Email/SMS notifications
-- [ ] Report generation (PDF/Excel)
-- [ ] Multi-face recognition in single frame
-- [ ] Age and gender detection
-- [ ] Liveness detection to prevent spoofing
-- [ ] Mobile app integration
-
----
-
-**Created**: January 2026
-**Last Updated**: January 22, 2026

@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import cv2
 import numpy as np
 import face_recognition
 import os
+from typing import List, Tuple
 from datetime import datetime
 from attendance import AttendanceSystem
 from utils import get_date
@@ -10,14 +13,14 @@ from utils import get_date
 class FaceAttendanceApp:
     """Face recognition and attendance system without UI dependencies"""
     
-    def __init__(self, enrollment_path='ImagesAttendance', attendance_path='data/Attendance'):
+    def __init__(self, enrollment_path: str = 'ImagesAttendance', attendance_path: str = 'data/Attendance') -> None:
         self.enrollment_path = enrollment_path
         self.attendance_system = AttendanceSystem(attendance_path)
         self.known_face_encodings = []
         self.known_face_names = []
         self.load_and_encode_faces()
     
-    def load_and_encode_faces(self):
+    def load_and_encode_faces(self) -> None:
         """Load all enrolled faces and generate their encodings"""
         self.known_face_encodings = []
         self.known_face_names = []
@@ -57,7 +60,7 @@ class FaceAttendanceApp:
                         except Exception as e:
                             print(f"Error encoding {img_path}: {e}")
     
-    def recognize_frame(self, frame, scale=0.25):
+    def recognize_frame(self, frame: np.ndarray, scale: float = 0.25) -> Tuple[np.ndarray, List[str]]:
         """
         Recognize faces in a frame and mark attendance
         
@@ -129,7 +132,7 @@ class FaceAttendanceApp:
         
         return annotated_frame, recognized_names
     
-    def enroll_person(self, name, image_path):
+    def enroll_person(self, name: str, image_path: str) -> bool:
         """
         Enroll a new person from an image file
         
@@ -172,7 +175,7 @@ class FaceAttendanceApp:
             print(f"Error enrolling {name}: {e}")
             return False
     
-    def enroll_from_array(self, name, image_array):
+    def enroll_from_array(self, name: str, image_array: np.ndarray) -> bool:
         """
         Enroll a new person from a numpy array (BGR format)
         
@@ -211,7 +214,7 @@ class FaceAttendanceApp:
             print(f"Error enrolling {name}: {e}")
             return False
     
-    def get_attendance_today(self):
+    def get_attendance_today(self) -> List[dict]:
         """
         Get today's attendance list
         
@@ -227,7 +230,7 @@ class FaceAttendanceApp:
             print(f"Error reading attendance: {e}")
             return []
     
-    def get_enrolled_persons(self):
+    def get_enrolled_persons(self) -> List[str]:
         """
         Get list of all enrolled persons
         
