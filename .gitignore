@@ -39,9 +39,16 @@ encodings.pkl
 *.csv
 .webcam_cache/
 
-# Image and video files (optional - uncomment if needed)
-# *.jpg
-# *.jpeg
-# *.png
-# *.mp4
-# *.avi
+# Image and video files
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.webp
+*.mp4
+*.avi
+
+# Image directories used by the app (contain personal/private photos)
+ImagesAttendance/
+images/
