@@ -39,6 +39,10 @@ encodings.pkl
 *.csv
 .webcam_cache/
 
+# Face image data — supply your own photos locally, do not commit
+ImagesAttendance/
+images/
+
 # Image and video files (optional - uncomment if needed)
 # *.jpg
 # *.jpeg
