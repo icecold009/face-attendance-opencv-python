@@ -1,4 +1,4 @@
-# 👤 Face Attendance System
+# Face Attendance System
 
 <div align="center">
 
@@ -15,15 +15,13 @@
 
 </div>
 
----
-
-## ✨ Features
+## Features
 
 <table>
 <tr>
 <td width="50%">
 
-### 🎯 Core Features
+### Core Features
 - ✅ **Real-time Face Recognition** — ~5 fps live detection
 - ✅ **Auto Attendance Marking** — One entry per person per day
 - ✅ **Face Enrollment** — Add new people with simple UI
@@ -33,7 +31,7 @@
 </td>
 <td width="50%">
 
-### 🚀 Advanced Features  
+### Advanced Features  
 - 🌐 **Modern Web UI** — Local Flask dashboard with live webcam
 - 📊 **Statistics** — Track enrolled people & daily attendance
 - 🎨 **Real-time Annotation** — Green/red boxes for faces
@@ -44,9 +42,7 @@
 </tr>
 </table>
 
----
-
-## 🚀 Quick Start
+## Quick Start
 
 ### Two Modes of Operation
 
@@ -75,14 +71,14 @@ python main.py
 
 ---
 
-## 🌐 Web UI
+## Web UI
 
 ### Features
-- 📹 **Live Video Preview** — Real-time webcam feed in browser
-- 🎬 **Live Recognition** — 5 fps frame sampling and annotation
-- 📝 **Enroll People** — Add faces directly from webcam
-- 📊 **View Attendance** — See today's records in real-time
-- 📊 **Statistics Dashboard** — Count of enrolled people and attendance
+- **Live Video Preview** — Real-time webcam feed in browser
+- **Live Recognition** — 5 fps frame sampling and annotation
+- **Enroll People** — Add faces directly from webcam
+- **View Attendance** — See today's records in real-time
+- **Statistics Dashboard** — Count of enrolled people and attendance
 
 ### Access
 - **URL**: `http://localhost:5000`
@@ -103,7 +99,7 @@ python main.py
 
 ---
 
-## 📋 Project Structure
+## Project Structure
 
 ```
 face-attendance-opencv-python/
@@ -127,9 +123,7 @@ face-attendance-opencv-python/
 └── README.md                       # This file
 ```
 
----
-
-## 💾 Installation
+## Installation
 
 ### Prerequisites
 - **Python**: 3.7 or higher
@@ -160,9 +154,7 @@ pip install -r requirements.txt
 
 **Note**: First install of `dlib` may take 5-10 minutes. This is normal.
 
----
-
-## 🎯 Usage Guide
+## Usage Guide
 
 ### Web UI Workflow
 
@@ -205,9 +197,7 @@ python main.py
 # 5. Exit
 ```
 
----
-
-## ⚙️ Configuration
+## Configuration
 
 ### Adjust Recognition Tolerance
 Edit `src/face_attendance_app.py`:
@@ -227,9 +217,7 @@ Edit `templates/index.html`:
 const FPS = 5;  // Frames per second (adjust for speed/accuracy)
 ```
 
----
-
-## 📊 How It Works
+## How It Works
 
 ### Face Recognition Pipeline
 ```
@@ -257,9 +245,7 @@ Format:
     Jane,09:35:42,Present
 ```
 
----
-
-## 📈 System Requirements
+## System Requirements
 
 | Component | Minimum | Recommended |
 |-----------|---------|------------|
@@ -271,28 +257,26 @@ Format:
 
 ---
 
-## 🎯 Tips for Best Results
+## Tips for Best Results
 
-### ✅ For Enrollment
+### For Enrollment
 - Capture **5-10 images** per person
 - Use **different angles** and lighting
 - Ensure **face is clearly visible**
 - Good lighting (face 30cm-1m from camera)
 
-### ✅ For Recognition
+### For Recognition
 - **Consistent lighting** is crucial
 - **Steady camera** position
 - **No glasses** or minimal appearance changes
 - **Frontal face** angles work best
 
-### ⚡ For Performance
+### For Performance
 - Lower tolerance (0.4) = Faster but stricter
 - Reduce FPS if system is slow
 - Use powerful GPU if available
 
----
-
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### "No module named 'face_recognition'"
 ```bash
@@ -307,41 +291,16 @@ pip install face-recognition
 ```
 
 ### Low recognition accuracy
-- ✅ Enroll more images (10+)
-- ✅ Check lighting conditions
-- ✅ Reduce tolerance to 0.4-0.5
+- Enroll more images (10+)
+- Check lighting conditions
+- Reduce tolerance to 0.4-0.5
 
 ### Slow performance
-- 🔧 Reduce FPS from 5 to 2
-- 🔧 Close other applications
-- 🔧 Use better processor
+- Reduce FPS from 5 to 2
+- Close other applications
+- Use better processor
 
----
-
-## 🌐 Sharing Your Project
-
-### Local Network Access
-```bash
-# Run with --host 0.0.0.0
-python web_app.py --host 0.0.0.0
-# Access from: http://YOUR_IP:5000
-```
-
-### Remote Access
-Use **ngrok** for quick sharing (free):
-```bash
-ngrok http 5000
-# Get public URL: https://abc123.ngrok.io
-```
-
-### Deploy Online
-- **Render**: Free tier available
-- **Railway**: Supports Python
-- **Heroku**: Traditional choice
-
----
-
-## 📦 Dependencies
+## Dependencies
 
 ```
 opencv-python==4.8.1.78       # Computer vision
@@ -354,9 +313,7 @@ pandas>=2.0.3                 # Data handling
 Pillow>=10.0.0                # Image processing
 ```
 
----
-
-## 📄 Output Files
+## Output Files
 
 ### Enrollment Data
 ```
