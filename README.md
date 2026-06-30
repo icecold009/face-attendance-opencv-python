@@ -333,9 +333,7 @@ John,09:30:15,Present
 Jane,09:35:42,Present
 ```
 
----
-
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and guidelines.
 
@@ -344,19 +342,11 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for se
 3. Make your changes
 4. Submit a pull request
 
-## 🚀 Future Enhancements
+## Roadmap
 
-- [ ] Database backend (PostgreSQL/MongoDB)
-- [ ] Multi-camera support
-- [ ] Face mask detection
-- [ ] Liveness detection (prevent spoofing)
-- [ ] REST API for external integration
-- [ ] Docker containerization
-- [ ] Mobile app companion
-- [ ] Real-time notifications
-- [ ] Email/SMS notifications
-- [ ] Report generation (PDF/Excel)
-- [ ] Age and gender detection
+- [ ] Liveness detection to prevent photo spoofing
+- [ ] PostgreSQL backend to replace CSV attendance files
+- [ ] Docker container for portable deployment
 
 ---
 
