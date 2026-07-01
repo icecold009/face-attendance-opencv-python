@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import cv2
 import numpy as np
-import face_recognition
+import face_recognition  # keep for landmarks / other functions if needed
 import os
 from typing import List, Tuple
 from datetime import datetime
+
 from attendance import AttendanceSystem
 from utils import get_date
+
+from modules.detection import detect_faces
+from modules.encoding import encode_faces
+from modules.identification import match_face
 
 
 class FaceAttendanceApp:

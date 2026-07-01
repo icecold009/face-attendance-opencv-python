@@ -4,6 +4,10 @@ import sys
 import numpy as np
 from pathlib import Path
 
+from modules.detection import detect_faces
+from modules.encoding import encode_faces
+from modules.identification import match_face
+
 # Add src to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
