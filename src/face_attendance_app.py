@@ -1,245 +1,198 @@
-from __future__ import annotations
+import os
+import csv
+from datetime import datetime
+from pathlib import Path
 
 import cv2
 import numpy as np
-import face_recognition  # keep for landmarks / other functions if needed
-import os
-from typing import List, Tuple
-from datetime import datetime
+from flask import Flask, render_template, Response
 
-from attendance import AttendanceSystem
-from utils import get_date
-
+from config import load_config
 from modules.detection import detect_faces
 from modules.encoding import encode_faces
 from modules.identification import match_face
 
 
-class FaceAttendanceApp:
-    """Face recognition and attendance system without UI dependencies"""
-    
-    def __init__(self, enrollment_path: str = 'ImagesAttendance', attendance_path: str = 'data/Attendance') -> None:
-        self.enrollment_path = enrollment_path
-        self.attendance_system = AttendanceSystem(attendance_path)
-        self.known_face_encodings = []
-        self.known_face_names = []
-        self.load_and_encode_faces()
-    
-    def load_and_encode_faces(self) -> None:
-        """Load all enrolled faces and generate their encodings"""
-        self.known_face_encodings = []
-        self.known_face_names = []
-        
-        if not os.path.exists(self.enrollment_path):
-            os.makedirs(self.enrollment_path)
-            return
-        
-        for person_name in os.listdir(self.enrollment_path):
-            person_path = os.path.join(self.enrollment_path, person_name)
-            
-            # Handle both single images and directories of images
-            if os.path.isfile(person_path):
-                # Single image file
-                try:
-                    img = face_recognition.load_image_file(person_path)
-                    encodings = face_recognition.face_encodings(img)
-                    if encodings:
-                        self.known_face_encodings.append(encodings[0])
-                        # Use filename without extension as name
-                        name = os.path.splitext(os.path.basename(person_path))[0]
-                        self.known_face_names.append(name)
-                except Exception as e:
-                    print(f"Error encoding {person_path}: {e}")
-            
-            elif os.path.isdir(person_path):
-                # Directory of images for one person
-                for img_file in os.listdir(person_path):
-                    if img_file.lower().endswith(('.jpg', '.jpeg', '.png', '.gif')):
-                        img_path = os.path.join(person_path, img_file)
-                        try:
-                            img = face_recognition.load_image_file(img_path)
-                            encodings = face_recognition.face_encodings(img)
-                            if encodings:
-                                self.known_face_encodings.append(encodings[0])
-                                self.known_face_names.append(person_name)
-                        except Exception as e:
-                            print(f"Error encoding {img_path}: {e}")
-    
-    def recognize_frame(self, frame: np.ndarray, scale: float = 0.25) -> Tuple[np.ndarray, List[str]]:
-        """
-        Recognize faces in a frame and mark attendance
-        
-        Args:
-            frame: numpy array (BGR image from cv2)
-            scale: scale factor for processing speed (default 0.25 for 4x speedup)
-        
-        Returns:
-            annotated_frame: frame with rectangles and names drawn
-            recognized_names: list of recognized names in this frame
-        """
-        # Resize for faster processing
-        small_frame = cv2.resize(frame, (0, 0), None, scale, scale)
+# -------------------------------------------------
+# Configuration and global state
+# -------------------------------------------------
+
+BASE_DIR = Path(__file__).resolve().parents[1]  # repo root
+cfg = load_config()
+
+DETECTION_MODEL = cfg.get("detection_model", "hog")
+MIN_CONFIDENCE = cfg.get("min_confidence", 0.6)
+FRAME_RESIZE_SCALE = cfg.get("frame_resize_scale", 0.25)
+
+ATTENDANCE_CSV_PATH = BASE_DIR / cfg.get(
+    "attendance_csv_path", "data/Attendance/attendance.csv"
+)
+
+# TODO: adjust these paths / loading logic to match your repo
+KNOWN_ENCODINGS_PATH = BASE_DIR / "ImagesAttendance"  # or wherever you store known faces
+
+
+# -------------------------------------------------
+# Helpers for loading known faces and attendance
+# -------------------------------------------------
+
+def load_known_faces_from_folder(folder_path: Path):
+    """
+    Load known face encodings and labels from a folder structure.
+
+    Expected structure:
+        folder_path/
+            person1/ img1.jpg, img2.jpg, ...
+            person2/ img1.jpg, ...
+
+    Returns:
+        known_encodings: List[np.ndarray]
+        known_labels: List[str]
+    """
+    import face_recognition  # still needed for initial encoding
+
+    known_encodings = []
+    known_labels = []
+
+    for person_name in os.listdir(folder_path):
+        person_dir = folder_path / person_name
+        if not person_dir.is_dir():
+            continue
+        for fname in os.listdir(person_dir):
+            img_path = person_dir / fname
+            img = cv2.imread(str(img_path))
+            if img is None:
+                continue
+            rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            boxes = detect_faces(rgb_img, model=DETECTION_MODEL)
+            encs = encode_faces(rgb_img, boxes)
+            if not encs:
+                continue
+            known_encodings.append(encs[0])
+            known_labels.append(person_name)
+
+    return known_encodings, known_labels
+
+
+def ensure_attendance_csv_exists():
+    """
+    Create the attendance CSV file with header if it does not exist.
+    """
+    ATTENDANCE_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
+    if not ATTENDANCE_CSV_PATH.exists():
+        with ATTENDANCE_CSV_PATH.open("w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["name", "timestamp", "confidence"])
+
+
+def mark_attendance(name: str, confidence: float):
+    """
+    Append a new attendance record for a recognized person.
+    """
+    ensure_attendance_csv_exists()
+    timestamp = datetime.now().isoformat(timespec="seconds")
+    with ATTENDANCE_CSV_PATH.open("a", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow([name, timestamp, f"{confidence:.4f}"])
+
+
+# -------------------------------------------------
+# Video capture + generator
+# -------------------------------------------------
+
+video_capture = cv2.VideoCapture(0)
+
+known_encodings, known_labels = load_known_faces_from_folder(KNOWN_ENCODINGS_PATH)
+
+
+def generate_frames():
+    """
+    Video frame generator that performs detection + encoding + identification
+    on each frame and yields JPEG-encoded frames for Flask streaming.
+    """
+    while True:
+        success, frame = video_capture.read()
+        if not success:
+            break
+
+        # optional resize for speed
+        small_frame = cv2.resize(
+            frame,
+            (0, 0),
+            fx=FRAME_RESIZE_SCALE,
+            fy=FRAME_RESIZE_SCALE,
+        )
         rgb_small_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
-        
-        # Detect faces and encode
-        face_locations = face_recognition.face_locations(rgb_small_frame)
-        face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
-        
-        recognized_names = []
-        annotated_frame = frame.copy()
-        
-        for face_encoding, face_location in zip(face_encodings, face_locations):
-            # Compare with known faces
-            matches = face_recognition.compare_faces(
-                self.known_face_encodings, face_encoding, tolerance=0.6
+
+        face_locations = detect_faces(rgb_small_frame, model=DETECTION_MODEL)
+        face_encodings = encode_faces(rgb_small_frame, face_locations)
+
+        for face_encoding, (top, right, bottom, left) in zip(
+            face_encodings, face_locations
+        ):
+            name, dist = match_face(
+                face_encoding,
+                known_encodings,
+                known_labels,
+                tolerance=MIN_CONFIDENCE,
             )
-            name = "Unknown"
-            confidence = 0
-            
-            # Get distances for all known faces
-            face_distances = face_recognition.face_distance(
-                self.known_face_encodings, face_encoding
-            )
-            
-            if len(face_distances) > 0:
-                best_match_index = np.argmin(face_distances)
-                
-                # Only identify if confidence is high enough
-                if matches[best_match_index] or face_distances[best_match_index] < 0.4:
-                    name = self.known_face_names[best_match_index]
-                    confidence = 1 - face_distances[best_match_index]
-                    recognized_names.append(name)
-                    # Mark attendance
-                    self.attendance_system.mark_attendance(name)
-            
-            # Draw rectangle and label (scale back up for original frame)
-            top, right, bottom, left = face_location
-            top *= int(1 / scale)
-            right *= int(1 / scale)
-            bottom *= int(1 / scale)
-            left *= int(1 / scale)
-            
-            # Color: green if recognized, red if unknown
+
+            # scale back up face locations since the frame was resized
+            top = int(top / FRAME_RESIZE_SCALE)
+            right = int(right / FRAME_RESIZE_SCALE)
+            bottom = int(bottom / FRAME_RESIZE_SCALE)
+            left = int(left / FRAME_RESIZE_SCALE)
+
+            # draw bounding box and label
             color = (0, 255, 0) if name != "Unknown" else (0, 0, 255)
-            thickness = 3
-            
-            cv2.rectangle(annotated_frame, (left, top), (right, bottom), color, thickness)
-            
-            # Draw label background
-            label_text = f"{name} ({confidence:.2f})" if name != "Unknown" else name
-            cv2.rectangle(
-                annotated_frame, (left, bottom - 35), (right, bottom), color, cv2.FILLED
-            )
+            cv2.rectangle(frame, (left, top), (right, bottom), color, 2)
+            label = f"{name} ({dist:.2f})"
+            cv2.rectangle(frame, (left, bottom - 20), (right, bottom), color, cv2.FILLED)
             cv2.putText(
-                annotated_frame, label_text, (left + 6, bottom - 6),
-                cv2.FONT_HERSHEY_COMPLEX, 0.6, (255, 255, 255), 2
+                frame,
+                label,
+                (left + 6, bottom - 6),
+                cv2.FONT_HERSHEY_DUPLEX,
+                0.5,
+                (255, 255, 255),
+                1,
             )
-        
-        return annotated_frame, recognized_names
-    
-    def enroll_person(self, name: str, image_path: str) -> bool:
-        """
-        Enroll a new person from an image file
-        
-        Args:
-            name: person's name
-            image_path: path to the enrollment image
-        
-        Returns:
-            success: boolean indicating if enrollment succeeded
-        """
-        try:
-            person_dir = os.path.join(self.enrollment_path, name)
-            os.makedirs(person_dir, exist_ok=True)
-            
-            # Load and validate image
-            img = face_recognition.load_image_file(image_path)
-            face_locations = face_recognition.face_locations(img)
-            
-            if len(face_locations) == 0:
-                print(f"No face detected in {image_path}")
-                return False
-            
-            if len(face_locations) > 1:
-                print(f"Multiple faces detected in {image_path}. Using first face.")
-            
-            # Save the enrollment image
-            filename = f"{name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
-            dest_path = os.path.join(person_dir, filename)
-            
-            # Use cv2 to save if image_path is a file path
-            img_cv = cv2.imread(image_path)
-            if img_cv is not None:
-                cv2.imwrite(dest_path, img_cv)
-            
-            # Reload faces to update encodings
-            self.load_and_encode_faces()
-            return True
-        
-        except Exception as e:
-            print(f"Error enrolling {name}: {e}")
-            return False
-    
-    def enroll_from_array(self, name: str, image_array: np.ndarray) -> bool:
-        """
-        Enroll a new person from a numpy array (BGR format)
-        
-        Args:
-            name: person's name
-            image_array: numpy array in BGR format (from cv2 or webcam)
-        
-        Returns:
-            success: boolean indicating if enrollment succeeded
-        """
-        try:
-            person_dir = os.path.join(self.enrollment_path, name)
-            os.makedirs(person_dir, exist_ok=True)
-            
-            # Convert BGR to RGB for face_recognition
-            rgb_image = cv2.cvtColor(image_array, cv2.COLOR_BGR2RGB)
-            face_locations = face_recognition.face_locations(rgb_image)
-            
-            if len(face_locations) == 0:
-                print(f"No face detected in image for {name}")
-                return False
-            
-            if len(face_locations) > 1:
-                print(f"Multiple faces detected. Using first face.")
-            
-            # Save the enrollment image
-            filename = f"{name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
-            dest_path = os.path.join(person_dir, filename)
-            cv2.imwrite(dest_path, image_array)
-            
-            # Reload faces to update encodings
-            self.load_and_encode_faces()
-            return True
-        
-        except Exception as e:
-            print(f"Error enrolling {name}: {e}")
-            return False
-    
-    def get_attendance_today(self) -> List[dict]:
-        """
-        Get today's attendance list
-        
-        Returns:
-            list of dicts with Name, Time, Status
-        """
-        try:
-            attendance_file = self.attendance_system.get_attendance_file()
-            import pandas as pd
-            df = pd.read_csv(attendance_file)
-            return df.to_dict('records')
-        except Exception as e:
-            print(f"Error reading attendance: {e}")
-            return []
-    
-    def get_enrolled_persons(self) -> List[str]:
-        """
-        Get list of all enrolled persons
-        
-        Returns:
-            list of unique person names
-        """
-        return list(set(self.known_face_names))
+
+            if name != "Unknown":
+                mark_attendance(name, dist)
+
+        # encode frame for streaming
+        ret, buffer = cv2.imencode(".jpg", frame)
+        frame_bytes = buffer.tobytes()
+
+        yield (
+            b"--frame\r\n"
+            b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
+        )
+
+
+# -------------------------------------------------
+# Flask app
+# -------------------------------------------------
+
+app = Flask(__name__, template_folder=str(BASE_DIR / "templates"))
+
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+
+@app.route("/video_feed")
+def video_feed():
+    return Response(
+        generate_frames(),
+        mimetype="multipart/x-mixed-replace; boundary=frame",
+    )
+
+
+if __name__ == "__main__":
+    try:
+        app.run(host="0.0.0.0", port=5000, debug=True)
+    finally:
+        video_capture.release()
+        cv2.destroyAllWindows()

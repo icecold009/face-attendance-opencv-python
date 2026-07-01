@@ -4,10 +4,6 @@ import sys
 import numpy as np
 from pathlib import Path
 
-from modules.detection import detect_faces
-from modules.encoding import encode_faces
-from modules.identification import match_face
-
 # Add src to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -19,7 +15,7 @@ class FaceAttendanceApp:
     def __init__(self):
         self.face_recognition = FaceRecognitionSystem('encodings.pkl')
         self.attendance = AttendanceSystem('data/Attendance')
-        self.cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+        self.cascade_path = os.path.join(cv2.data.haarcascades.rstrip(os.sep), 'haarcascade_frontalface_default.xml')
         self.face_cascade = cv2.CascadeClassifier(self.cascade_path)
         self.running = True
         

@@ -64,7 +64,6 @@ class FaceRecognitionSystem:
         face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
         
         face_names = []
-        face_distances = []
         
         for face_encoding in face_encodings:
             matches = face_recognition.compare_faces(
@@ -75,16 +74,16 @@ class FaceRecognitionSystem:
             name = "Unknown"
             confidence = 0
             
-            face_distances = face_recognition.face_distance(
+            distances = face_recognition.face_distance(
                 self.known_face_encodings,
                 face_encoding
             )
             
-            if len(face_distances) > 0:
-                best_match_index = np.argmin(face_distances)
+            if len(distances) > 0:
+                best_match_index = np.argmin(distances)
                 if matches[best_match_index]:
                     name = self.known_face_names[best_match_index]
-                    confidence = 1 - face_distances[best_match_index]
+                    confidence = 1 - distances[best_match_index]
             
             face_names.append((name, confidence))
         
@@ -132,11 +131,6 @@ if __name__ == "__main__":
     elon_image = face_recognition.load_image_file(elon_image_path)  # type: ignore
     elon_test = face_recognition.load_image_file(elon_test_path)  # type: ignore
     bill_gates_image = face_recognition.load_image_file(bill_gates_path)  # type: ignore
-    
-    # Convert BGR to RGB (face_recognition uses RGB)
-    elon_image_rgb = cv2.cvtColor(cv2.imread(elon_image_path), cv2.COLOR_BGR2RGB)
-    elon_test_rgb = cv2.cvtColor(cv2.imread(elon_test_path), cv2.COLOR_BGR2RGB)
-    bill_gates_rgb = cv2.cvtColor(cv2.imread(bill_gates_path), cv2.COLOR_BGR2RGB)
     
     # Get face encodings
     elon_encoding = face_recognition.face_encodings(elon_image)[0]  # type: ignore

@@ -1,0 +1,9 @@
+detection_model: "hog"
+min_confidence: 0.6
+frame_resize_scale: 0.25
+
+attendance_csv_path: "data/Attendance/attendance.csv"
+
+benchmark:
+  test_images_dir: "test_images"
+  log_dir: "results"
