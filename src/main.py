@@ -1,13 +1,15 @@
 """
-Entry point wrapper for the face attendance application.
+CI-safe entrypoint wrapper for the face attendance application.
 
-This keeps backward compatibility with tests and scripts
-that expect `python -m src.main` or `python src/main.py`.
+- Exposes `app` for tests: `from src.main import app`
+- Only starts the server when executed directly: `python -m src.main`
 """
 
-from .face_attendance_app import app  # noqa: F401
+from .face_attendance_app import create_app  # noqa: F401
+
+# Create the Flask app instance for tests or external use
+app = create_app()
 
 if __name__ == "__main__":
-    # Optional: only run the Flask server if executed directly.
-    # In tests, they can still import `app` without side effects.
+    # Only run the dev server when executed directly
     app.run(host="0.0.0.0", port=5000, debug=True)
