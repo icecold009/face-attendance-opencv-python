@@ -10,18 +10,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 - Real-time face recognition and attendance marking via webcam
-- Flask web dashboard with live video preview (5 fps)
-- Face enrollment via webcam capture directly in the browser
+- Flask web interface with live video preview (5 fps)
 - Daily attendance records exported to CSV (`data/Attendance/`)
-- CLI interface (`src/main.py`) for server or terminal-only environments
+- Alternate Flask server entrypoint (`src/main.py`) for server environments
 - OpenCV-based fallback face recognition engine (`src/mock_face_recognition.py`) — runs 100% locally, no cloud APIs
 - Support for per-person image directories under `ImagesAttendance/`
-- `GET /attendance` API endpoint for today's attendance list
-- `GET /enrolled-persons` API endpoint for enrolled person names
-- `POST /recognize` API endpoint for single-frame recognition
-- `POST /enroll` API endpoint for face enrollment
-- `GET /health` health-check endpoint
-- `--host` and `--port` CLI flags for `web_app.py`
+- `--host`, `--port`, and opt-in `--debug` flags for the Flask launchers
 
 ---
 
