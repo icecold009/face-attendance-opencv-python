@@ -30,8 +30,6 @@ def _load_known_faces_from_folder(
 
     This runs only when the app actually starts, not at import time.
     """
-    import face_recognition
-
     known_encodings: List[np.ndarray] = []
     known_labels: List[str] = []
 

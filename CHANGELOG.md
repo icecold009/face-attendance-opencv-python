@@ -14,7 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Face enrollment via webcam capture directly in the browser
 - Daily attendance records exported to CSV (`data/Attendance/`)
 - CLI interface (`src/main.py`) for server or terminal-only environments
-- OpenCV-based face recognition engine (`src/face_recognition.py`) — runs 100% locally, no cloud APIs
+- OpenCV-based fallback face recognition engine (`src/mock_face_recognition.py`) — runs 100% locally, no cloud APIs
 - Support for per-person image directories under `ImagesAttendance/`
 - `GET /attendance` API endpoint for today's attendance list
 - `GET /enrolled-persons` API endpoint for enrolled person names

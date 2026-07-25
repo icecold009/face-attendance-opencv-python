@@ -1,5 +1,8 @@
 # detection.py
-import face_recognition
+try:
+    import face_recognition
+except ModuleNotFoundError:
+    from src import mock_face_recognition as face_recognition
 
 def detect_faces(rgb_frame, model="hog"):
     """

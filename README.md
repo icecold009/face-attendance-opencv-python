@@ -112,7 +112,7 @@ face-attendance-opencv-python/
 ├── src/
 │   ├── face_attendance_app.py       # Core recognition engine
 │   ├── attendance.py               # Attendance tracking
-│   ├── face_recognition.py         # Face encoding & matching
+│   ├── mock_face_recognition.py    # Dependency-free fallback for face encoding
 │   ├── utils.py                    # Utility functions
 │   └── main.py                     # Alternate Flask server entry point
 │

@@ -1,7 +1,10 @@
 import cv2
 import numpy as np
 import os
-import face_recognition  # Local mock module
+try:
+    from . import mock_face_recognition as face_recognition
+except ImportError:
+    import mock_face_recognition as face_recognition
 from PIL import Image
 from utils import create_directory, save_pickle, load_pickle
 
