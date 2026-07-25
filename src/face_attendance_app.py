@@ -1,4 +1,6 @@
+import argparse
 import os
+import sys
 from pathlib import Path
 from typing import Tuple, List
 
@@ -6,15 +8,18 @@ import cv2
 import numpy as np
 from flask import Flask, render_template, Response
 
+
+BASE_DIR = Path(__file__).resolve().parents[1]  # repo root
+for import_path in (Path(__file__).resolve().parent, BASE_DIR):
+    if str(import_path) not in sys.path:
+        sys.path.insert(0, str(import_path))
+
+
 from config import load_config
 from attendance import AttendanceSystem
 from modules.detection import detect_faces
 from modules.encoding import encode_faces
 from modules.identification import match_face
-
-
-BASE_DIR = Path(__file__).resolve().parents[1]  # repo root
-
 
 def _load_known_faces_from_folder(
     folder_path: Path,
@@ -199,5 +204,15 @@ def create_app() -> Flask:
 
 # Optional: run directly for local dev
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Face Attendance App")
+    parser.add_argument(
+        "--host", default="0.0.0.0", help="Host to bind (default: 0.0.0.0)"
+    )
+    parser.add_argument(
+        "--port", type=int, default=5000, help="Port to bind (default: 5000)"
+    )
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode")
+    args = parser.parse_args()
+
     app_instance = create_app()
-    app_instance.run(host="0.0.0.0", port=5000, debug=True)
+    app_instance.run(debug=args.debug, host=args.host, port=args.port)
