@@ -60,11 +60,12 @@ python web_app.py
 # Navigate to http://localhost:5000
 ```
 
-#### **Mode 2: Command Line** 💻
-Traditional CLI interface for server environments.
+#### **Mode 2: Server Launcher**
+Start the Flask server from the `src` directory for server-oriented use. This
+entrypoint starts the web server; it does not provide an interactive menu.
 
 ```bash
-# Run the main program
+# Start the Flask server
 cd src
 python main.py
 ```
@@ -113,7 +114,7 @@ face-attendance-opencv-python/
 │   ├── attendance.py               # Attendance tracking
 │   ├── face_recognition.py         # Face encoding & matching
 │   ├── utils.py                    # Utility functions
-│   └── main.py                     # CLI entry point
+│   └── main.py                     # Alternate Flask server entry point
 │
 ├── ImagesAttendance/               # Enrollment images
 ├── data/
@@ -181,20 +182,6 @@ Click "Enroll New Person" → Enter name
 Click "View Attendance" → See today's records
 → Shows Name, Time, Status
 → Automatically updates in real-time
-```
-
-### CLI Workflow
-
-```bash
-cd src
-python main.py
-
-# Menu options:
-# 1. Enroll New Person
-# 2. Mark Attendance
-# 3. View Today's Attendance
-# 4. View Person History
-# 5. Exit
 ```
 
 ## Configuration
