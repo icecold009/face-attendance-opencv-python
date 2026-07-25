@@ -207,29 +207,40 @@ const FPS = 5;  // Frames per second (adjust for speed/accuracy)
 ## How It Works
 
 ### Face Recognition Pipeline
+
+The `/video_feed` route opens the default camera, processes each frame, and
+annotates recognized and unknown faces:
+
 ```
-Frame Input
+Camera frame
     ↓
-Detect Faces (Haar Cascade)
+Resize to 25% and convert BGR to RGB
     ↓
-Extract Face Regions
+Detect faces with `face_recognition.face_locations(model="hog")`
     ↓
-Generate 128-D Encodings (SIFT features)
+Generate 128-D face encodings with `face_recognition.face_encodings`
     ↓
-Compare with Known Encodings
+Compare encodings using Euclidean distance
     ↓
-Match? (distance < 0.6)
-    ├─ YES → Mark Attendance + Green Box
-    └─ NO  → Red Box (Unknown)
+Distance ≤ 0.6 → recognized name, green box, and attendance mark
+Distance > 0.6 → `Unknown` and red box
 ```
 
+With the declared `face-recognition` dependency installed, the `hog` detector
+uses dlib's HOG detector and the encoder uses its 128-D ResNet model. If that
+dependency is unavailable, `modules/detection.py` and `modules/encoding.py`
+explicitly use `src/mock_face_recognition.py` as a dependency-free fallback.
+
 ### Attendance Storage
-```
-Daily File: data/Attendance/Attendance_2024-01-22.csv
-Format:
-    Name,Time,Status
-    John,09:30:15,Present
-    Jane,09:35:42,Present
+
+Known names are passed to `AttendanceSystem.mark_attendance()`. The system
+creates one dated CSV per date and rejects repeated marks for a name after the
+first successful mark in the current app run.
+
+```text
+data/Attendance/Attendance_<YYYY-MM-DD>.csv
+Name,Time,Status
+<PersonName>,<YYYY-MM-DD HH:MM:SS>,Present
 ```
 
 ## System Requirements
@@ -304,21 +315,26 @@ Pillow>=10.0.0                # Image processing
 
 ### Enrollment Data
 Add 5–10 consented, public-domain, or synthetic photos per person under `ImagesAttendance/<Name>/`; these files stay local and are intentionally ignored by Git.
-```
+```text
 ImagesAttendance/
-├── John/
-│   ├── John_20240122_093015.jpg
-│   └── John_20240122_093045.jpg
-└── Jane/
-    └── Jane_20240122_093115.jpg
+├── <PersonName>/
+│   ├── photo-1.jpg
+│   └── photo-2.jpg
+└── <AnotherPerson>/
+    └── photo-1.jpg
 ```
 
+When `/video_feed` starts, the loader scans each person directory, encodes the
+first detected face in each readable image, and uses the directory name as the
+person label.
+
 ### Attendance Records
-```
-data/Attendance/Attendance_2024-01-22.csv
+```text
+data/Attendance/
+└── Attendance_<YYYY-MM-DD>.csv
+
 Name,Time,Status
-John,09:30:15,Present
-Jane,09:35:42,Present
+<PersonName>,<YYYY-MM-DD HH:MM:SS>,Present
 ```
 
 ## Contributing
