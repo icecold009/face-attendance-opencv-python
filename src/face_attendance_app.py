@@ -1,6 +1,4 @@
 import os
-import csv
-from datetime import datetime
 from pathlib import Path
 from typing import Tuple, List
 
@@ -9,6 +7,7 @@ import numpy as np
 from flask import Flask, render_template, Response
 
 from config import load_config
+from attendance import AttendanceSystem
 from modules.detection import detect_faces
 from modules.encoding import encode_faces
 from modules.identification import match_face
@@ -60,22 +59,6 @@ def _load_known_faces_from_folder(
     return known_encodings, known_labels
 
 
-def _ensure_attendance_csv_exists(csv_path: Path) -> None:
-    csv_path.parent.mkdir(parents=True, exist_ok=True)
-    if not csv_path.exists():
-        with csv_path.open("w", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(["name", "timestamp", "confidence"])
-
-
-def _mark_attendance(csv_path: Path, name: str, confidence: float) -> None:
-    _ensure_attendance_csv_exists(csv_path)
-    timestamp = datetime.now().isoformat(timespec="seconds")
-    with csv_path.open("a", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow([name, timestamp, f"{confidence:.4f}"])
-
-
 def create_app() -> Flask:
     """
     Application factory.
@@ -93,6 +76,8 @@ def create_app() -> Flask:
     attendance_csv_path = BASE_DIR / cfg.get(
         "attendance_csv_path", "data/Attendance/attendance.csv"
     )
+    attendance_path = attendance_csv_path.parent
+    attendance_system = AttendanceSystem(str(attendance_path))
 
     known_faces_folder = BASE_DIR / "ImagesAttendance"
 
@@ -102,7 +87,8 @@ def create_app() -> Flask:
     app.config["DETECTION_MODEL"] = detection_model
     app.config["MIN_CONFIDENCE"] = float(min_confidence)
     app.config["FRAME_RESIZE_SCALE"] = float(frame_resize_scale)
-    app.config["ATTENDANCE_CSV_PATH"] = attendance_csv_path
+    app.config["ATTENDANCE_PATH"] = attendance_path
+    app.config["ATTENDANCE_SYSTEM"] = attendance_system
     app.config["KNOWN_FACES_FOLDER"] = known_faces_folder
 
     @app.route("/")
@@ -191,11 +177,7 @@ def create_app() -> Flask:
                     )
 
                     if name != "Unknown":
-                        _mark_attendance(
-                            app.config["ATTENDANCE_CSV_PATH"],
-                            name,
-                            dist,
-                        )
+                        attendance_system.mark_attendance(name)
 
                 ret, buffer = cv2.imencode(".jpg", frame)
                 frame_bytes = buffer.tobytes()
