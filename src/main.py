@@ -1,11 +1,21 @@
-"""
-CI-safe entrypoint wrapper for the face attendance application.
+"""CI-safe entrypoint wrapper for the face attendance application."""
 
-- Exposes `app` for tests: `from src.main import app`
-- Only starts the server when executed directly: `python -m src.main`
-"""
+import sys
+from pathlib import Path
 
-from .face_attendance_app import create_app  # noqa: F401
+
+src_dir = Path(__file__).resolve().parent
+repo_root = src_dir.parent
+for import_path in (src_dir, repo_root):
+    if str(import_path) not in sys.path:
+        sys.path.insert(0, str(import_path))
+
+
+if __package__:
+    from .face_attendance_app import create_app
+else:
+    # Support the README's standalone invocation: ``cd src && python main.py``.
+    from face_attendance_app import create_app
 
 # Create the Flask app instance for tests or external use
 app = create_app()
