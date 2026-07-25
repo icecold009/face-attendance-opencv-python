@@ -1,67 +1,50 @@
-"""Unit tests for FaceAttendanceApp (no camera / face_recognition required)."""
+"""Unit tests for the Flask application factory."""
 
-import os
-import sys
+from pathlib import Path
+
+import cv2
 import pytest
+from flask import Flask
 
-# Ensure src/ is importable (conftest.py does this, but be explicit for clarity)
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-from face_attendance_app import FaceAttendanceApp
+from face_attendance_app import create_app
 
 
 @pytest.fixture
-def app(tmp_path):
-    """Return a FaceAttendanceApp with empty temporary directories."""
-    enrollment_dir = tmp_path / 'images'
-    attendance_dir = tmp_path / 'attendance'
-    return FaceAttendanceApp(
-        enrollment_path=str(enrollment_dir),
-        attendance_path=str(attendance_dir),
-    )
+def app():
+    """Return an application instance without opening the camera."""
+    return create_app()
 
 
-# ---------------------------------------------------------------------------
-# get_enrolled_persons
-# ---------------------------------------------------------------------------
-
-def test_get_enrolled_persons_empty(app):
-    persons = app.get_enrolled_persons()
-    assert persons == []
+def test_create_app_returns_flask_application(app):
+    assert isinstance(app, Flask)
 
 
-def test_get_enrolled_persons_returns_list(app):
-    assert isinstance(app.get_enrolled_persons(), list)
+def test_create_app_sets_expected_runtime_configuration(app):
+    assert app.config["DETECTION_MODEL"] == "hog"
+    assert app.config["MIN_CONFIDENCE"] == pytest.approx(0.6)
+    assert app.config["FRAME_RESIZE_SCALE"] == pytest.approx(0.25)
+    assert app.config["KNOWN_FACES_FOLDER"] == Path(__file__).parents[1] / "ImagesAttendance"
 
 
-# ---------------------------------------------------------------------------
-# get_attendance_today
-# ---------------------------------------------------------------------------
+def test_index_route_returns_template(app):
+    response = app.test_client().get("/")
 
-def test_get_attendance_today_empty(app):
-    records = app.get_attendance_today()
-    assert records == []
+    assert response.status_code == 200
+    assert response.content_type.startswith("text/html")
 
 
-def test_get_attendance_today_returns_list(app):
-    assert isinstance(app.get_attendance_today(), list)
+def test_video_feed_route_is_registered(app):
+    routes = {rule.rule for rule in app.url_map.iter_rules()}
+
+    assert "/video_feed" in routes
 
 
-# ---------------------------------------------------------------------------
-# load_and_encode_faces — directory creation side-effects
-# ---------------------------------------------------------------------------
+def test_create_app_does_not_open_camera(monkeypatch):
+    def fail_if_camera_is_opened(*args, **kwargs):
+        raise AssertionError("create_app() must not open the camera")
 
-def test_load_creates_enrollment_directory(tmp_path):
-    enrollment_dir = tmp_path / 'new_enrollment'
-    app = FaceAttendanceApp(
-        enrollment_path=str(enrollment_dir),
-        attendance_path=str(tmp_path / 'attendance'),
-    )
-    assert enrollment_dir.exists()
+    monkeypatch.setattr(cv2, "VideoCapture", fail_if_camera_is_opened)
 
+    app = create_app()
 
-def test_reload_does_not_raise_on_empty_dir(app):
-    """Calling load_and_encode_faces on an empty dir should not raise."""
-    app.load_and_encode_faces()
-    assert app.known_face_encodings == []
-    assert app.known_face_names == []
+    assert isinstance(app, Flask)
