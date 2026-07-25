@@ -26,7 +26,7 @@
 - ✅ **Auto Attendance Marking** — One entry per person per day
 - ✅ **Face Enrollment** — Add new people with simple UI
 - ✅ **Attendance Reports** — View daily records and history
-- ✅ **Zero Dependencies** — Runs 100% locally, no cloud
+- ✅ **Local-Only Runtime** — Uses the listed Python packages locally; no cloud service is required
 
 </td>
 <td width="50%">
@@ -60,11 +60,12 @@ python web_app.py
 # Navigate to http://localhost:5000
 ```
 
-#### **Mode 2: Command Line** 💻
-Traditional CLI interface for server environments.
+#### **Mode 2: Server Launcher**
+Start the Flask server from the `src` directory for server-oriented use. This
+entrypoint starts the web server; it does not provide an interactive menu.
 
 ```bash
-# Run the main program
+# Start the Flask server
 cd src
 python main.py
 ```
@@ -111,9 +112,9 @@ face-attendance-opencv-python/
 ├── src/
 │   ├── face_attendance_app.py       # Core recognition engine
 │   ├── attendance.py               # Attendance tracking
-│   ├── face_recognition.py         # Face encoding & matching
+│   ├── mock_face_recognition.py    # Dependency-free fallback for face encoding
 │   ├── utils.py                    # Utility functions
-│   └── main.py                     # CLI entry point
+│   └── main.py                     # Alternate Flask server entry point
 │
 ├── ImagesAttendance/               # Enrollment images
 ├── data/
@@ -126,7 +127,7 @@ face-attendance-opencv-python/
 ## Installation
 
 ### Prerequisites
-- **Python**: 3.7 or higher
+- **Python**: 3.10 or higher
 - **Webcam**: USB or built-in camera
 - **OS**: Windows, macOS, Linux
 
@@ -183,20 +184,6 @@ Click "View Attendance" → See today's records
 → Automatically updates in real-time
 ```
 
-### CLI Workflow
-
-```bash
-cd src
-python main.py
-
-# Menu options:
-# 1. Enroll New Person
-# 2. Mark Attendance
-# 3. View Today's Attendance
-# 4. View Person History
-# 5. Exit
-```
-
 ## Configuration
 
 ### Adjust Recognition Tolerance
@@ -220,29 +207,40 @@ const FPS = 5;  // Frames per second (adjust for speed/accuracy)
 ## How It Works
 
 ### Face Recognition Pipeline
+
+The `/video_feed` route opens the default camera, processes each frame, and
+annotates recognized and unknown faces:
+
 ```
-Frame Input
+Camera frame
     ↓
-Detect Faces (Haar Cascade)
+Resize to 25% and convert BGR to RGB
     ↓
-Extract Face Regions
+Detect faces with `face_recognition.face_locations(model="hog")`
     ↓
-Generate 128-D Encodings (SIFT features)
+Generate 128-D face encodings with `face_recognition.face_encodings`
     ↓
-Compare with Known Encodings
+Compare encodings using Euclidean distance
     ↓
-Match? (distance < 0.6)
-    ├─ YES → Mark Attendance + Green Box
-    └─ NO  → Red Box (Unknown)
+Distance ≤ 0.6 → recognized name, green box, and attendance mark
+Distance > 0.6 → `Unknown` and red box
 ```
 
+With the declared `face-recognition` dependency installed, the `hog` detector
+uses dlib's HOG detector and the encoder uses its 128-D ResNet model. If that
+dependency is unavailable, `modules/detection.py` and `modules/encoding.py`
+explicitly use `src/mock_face_recognition.py` as a dependency-free fallback.
+
 ### Attendance Storage
-```
-Daily File: data/Attendance/Attendance_2024-01-22.csv
-Format:
-    Name,Time,Status
-    John,09:30:15,Present
-    Jane,09:35:42,Present
+
+Known names are passed to `AttendanceSystem.mark_attendance()`. The system
+creates one dated CSV per date and rejects repeated marks for a name after the
+first successful mark in the current app run.
+
+```text
+data/Attendance/Attendance_<YYYY-MM-DD>.csv
+Name,Time,Status
+<PersonName>,<YYYY-MM-DD HH:MM:SS>,Present
 ```
 
 ## System Requirements
@@ -316,21 +314,27 @@ Pillow>=10.0.0                # Image processing
 ## Output Files
 
 ### Enrollment Data
-```
+Add 5–10 consented, public-domain, or synthetic photos per person under `ImagesAttendance/<Name>/`; these files stay local and are intentionally ignored by Git.
+```text
 ImagesAttendance/
-├── John/
-│   ├── John_20240122_093015.jpg
-│   └── John_20240122_093045.jpg
-└── Jane/
-    └── Jane_20240122_093115.jpg
+├── <PersonName>/
+│   ├── photo-1.jpg
+│   └── photo-2.jpg
+└── <AnotherPerson>/
+    └── photo-1.jpg
 ```
 
+When `/video_feed` starts, the loader scans each person directory, encodes the
+first detected face in each readable image, and uses the directory name as the
+person label.
+
 ### Attendance Records
-```
-data/Attendance/Attendance_2024-01-22.csv
+```text
+data/Attendance/
+└── Attendance_<YYYY-MM-DD>.csv
+
 Name,Time,Status
-John,09:30:15,Present
-Jane,09:35:42,Present
+<PersonName>,<YYYY-MM-DD HH:MM:SS>,Present
 ```
 
 ## Contributing

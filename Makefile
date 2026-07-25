@@ -7,7 +7,7 @@ run:
 	python web_app.py
 
 run-cli:
-	cd src && python main.py
+	python src/main.py
 
 test:
 	python -m pytest tests/ -v

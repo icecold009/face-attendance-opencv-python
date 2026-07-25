@@ -1,6 +1,9 @@
-"""
-Mock face_recognition module using OpenCV gradient-orientation histogram features.
-This provides basic face recognition functionality without dlib.
+"""Dependency-free fallback for environments without dlib.
+
+This module provides a lightweight OpenCV-based face detection and encoding
+implementation for local tests and constrained environments. It is an
+explicit fallback and is not a replacement for the ``face_recognition``
+package.
 """
 
 import cv2
@@ -11,9 +14,7 @@ from PIL import Image
 _HOG_SIZE   = 64   # face is resized to this before encoding
 _HOG_GRID   = 5    # spatial grid (5x5 cells)
 _HOG_BINS   = 8    # gradient orientation bins per cell → 5*5*8=200, trimmed to 128
-_DIST_SCALE = 1.09  # cubic calibration constant (d³/scale): empirically chosen so that
-                    # HOG Euclidean distances (raw ~0.78 same-person, ~0.94 diff-person)
-                    # map to the ~0.4 / ~0.8 output range the real face_recognition lib produces.
+_DISTANCE_NORMALIZATION = 1.09
 # Face size filter: detections whose larger dimension exceeds this fraction of the
 # smallest image dimension are discarded (removes multi-scale duplicates / oversized
 # false positives from the Haar cascade that would produce incorrect encodings).
@@ -125,11 +126,10 @@ def compare_faces(known_face_encodings, face_encoding_to_check, tolerance=0.6):
 
 def face_distance(face_encodings, face_to_compare):
     """
-    Compare face encodings to a probe.
-    Returns calibrated distances: ~0.4 for the same person, ~0.8+ for different people.
+    Compare fallback encodings to a probe and return this module's distances.
 
-    Calibration: raw Euclidean distance is cubed and divided by _DIST_SCALE so that
-    the output range matches what the real face_recognition library produces.
+    The cubic transform keeps the fallback's compressed HOG distances useful
+    with the tolerance values used by the application.
     """
     if len(face_encodings) == 0:
         return np.array([])
@@ -140,7 +140,7 @@ def face_distance(face_encodings, face_to_compare):
          for enc in face_encodings],
         dtype=np.float32,
     )
-    # Cubic calibration maps the compressed HOG-distance range into the expected output range
-    return raw ** 3 / _DIST_SCALE
+    # Keep the fallback distance range useful for the application's tolerance.
+    return raw ** 3 / _DISTANCE_NORMALIZATION
 
 
