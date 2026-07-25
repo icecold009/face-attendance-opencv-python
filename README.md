@@ -303,6 +303,7 @@ Pillow>=10.0.0                # Image processing
 ## Output Files
 
 ### Enrollment Data
+Add 5–10 consented, public-domain, or synthetic photos per person under `ImagesAttendance/<Name>/`; these files stay local and are intentionally ignored by Git.
 ```
 ImagesAttendance/
 ├── John/
