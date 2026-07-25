@@ -26,7 +26,7 @@
 - ✅ **Auto Attendance Marking** — One entry per person per day
 - ✅ **Face Enrollment** — Add new people with simple UI
 - ✅ **Attendance Reports** — View daily records and history
-- ✅ **Zero Dependencies** — Runs 100% locally, no cloud
+- ✅ **Local-Only Runtime** — Uses the listed Python packages locally; no cloud service is required
 
 </td>
 <td width="50%">
@@ -127,7 +127,7 @@ face-attendance-opencv-python/
 ## Installation
 
 ### Prerequisites
-- **Python**: 3.7 or higher
+- **Python**: 3.10 or higher
 - **Webcam**: USB or built-in camera
 - **OS**: Windows, macOS, Linux
 

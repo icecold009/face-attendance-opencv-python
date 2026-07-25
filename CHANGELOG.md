@@ -21,6 +21,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- Dashboard API endpoints for recognition, enrollment, attendance, enrolled-person listing, and health checks
+
 ### Planned
 - Database backend (PostgreSQL / MongoDB)
 - Multi-camera support
