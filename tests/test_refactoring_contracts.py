@@ -1,6 +1,7 @@
 """Behavioral contracts captured before extracting attendance services and routes."""
 
 import base64
+import socket
 from datetime import datetime as RealDateTime
 
 import cv2
@@ -17,6 +18,17 @@ class FrozenDateTime:
     @classmethod
     def now(cls):
         return RealDateTime(2025, 4, 3, 2, 1, 5, 6789)
+
+
+@pytest.fixture(autouse=True)
+def forbid_hardware_and_network(monkeypatch):
+    def unexpected_io(*_args, **_kwargs):
+        pytest.fail("characterization tests must not use hardware or network")
+
+    monkeypatch.setattr(app_module.cv2, "VideoCapture", unexpected_io)
+    monkeypatch.setattr(socket.socket, "connect", unexpected_io)
+    monkeypatch.setattr(socket.socket, "connect_ex", unexpected_io)
+    monkeypatch.setattr(socket, "create_connection", unexpected_io)
 
 
 @pytest.fixture
@@ -248,6 +260,45 @@ def test_enroll_uses_existing_timestamped_jpeg_name(
     assert [path.name for path in files] == ["20250403_020105_006789.jpg"]
 
 
+def test_enroll_preserves_unicode_name_in_path_and_response(
+    isolated_app, monkeypatch
+):
+    monkeypatch.setattr(
+        app_module, "detect_faces", lambda *_args, **_kwargs: [(1, 9, 9, 1)]
+    )
+    monkeypatch.setattr(
+        app_module,
+        "encode_faces",
+        lambda *_args: [np.zeros(128, dtype=np.float32)],
+    )
+    monkeypatch.setattr(app_module, "datetime", FrozenDateTime)
+    saved_paths = []
+    monkeypatch.setattr(
+        app_module.cv2,
+        "imwrite",
+        lambda path, _frame: saved_paths.append(path) or True,
+    )
+    person_name = "Zoë 東京"
+
+    response = isolated_app.test_client().post(
+        "/enroll",
+        json={"name": f"  {person_name}  ", "frame": jpeg_base64()},
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "success": True,
+        "message": f"Successfully enrolled {person_name}",
+    }
+    assert saved_paths == [
+        str(
+            isolated_app.config["KNOWN_FACES_FOLDER"]
+            / person_name
+            / "20250403_020105_006789.jpg"
+        )
+    ]
+
+
 def test_enroll_save_failure_keeps_500_response(isolated_app, monkeypatch):
     monkeypatch.setattr(
         app_module, "detect_faces", lambda *_args, **_kwargs: [(1, 9, 9, 1)]
@@ -298,13 +349,14 @@ def test_attendance_csv_freezes_date_timestamp_and_column_order(
     )
     system = attendance_module.AttendanceSystem(str(tmp_path))
 
-    assert system.mark_attendance("Alice") is True
+    person_name = "Zoë 東京"
+    assert system.mark_attendance(person_name) is True
     path = tmp_path / "Attendance_2025-04-03.csv"
     saved = pd.read_csv(path)
 
     assert list(saved.columns) == ["Name", "Time", "Status"]
     assert saved.to_dict(orient="records") == [
-        {"Name": "Alice", "Time": "02:01:05", "Status": "Present"}
+        {"Name": person_name, "Time": "02:01:05", "Status": "Present"}
     ]
 
 
