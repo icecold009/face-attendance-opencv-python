@@ -11,6 +11,7 @@ from flask import Flask
 
 import face_attendance_app as face_attendance_module
 from face_attendance_app import create_app
+from attendance_services.ports import KnownFaceImage
 
 
 @pytest.fixture
@@ -157,9 +158,11 @@ def test_video_feed_marks_person_once_per_day(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(face_attendance_module.cv2, "destroyAllWindows", lambda: None)
     monkeypatch.setattr(
-        face_attendance_module,
-        "_load_known_faces_from_folder",
-        lambda *_args: ([np.zeros(128, dtype=np.float32)], ["Alice"]),
+        app.config["IMAGE_STORE"],
+        "iter_known_face_images",
+        lambda: iter(
+            [KnownFaceImage("Alice", np.zeros((4, 4, 3), dtype=np.uint8))]
+        ),
     )
     monkeypatch.setattr(
         face_attendance_module,
