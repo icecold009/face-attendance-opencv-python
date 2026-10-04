@@ -1,6 +1,8 @@
 """Unit tests for the Flask application factory."""
 
+import importlib
 from pathlib import Path
+import sys
 import base64
 
 import cv2
@@ -39,6 +41,11 @@ def test_create_app_sets_expected_runtime_configuration(app):
     assert app.config["ATTENDANCE_PATH"] == Path(__file__).parents[1] / "data" / "Attendance"
 
 
+def test_create_app_does_not_import_face_models(app):
+    assert "modules.detection" not in sys.modules
+    assert "modules.encoding" not in sys.modules
+
+
 def test_index_route_returns_template(app):
     response = app.test_client().get("/")
 
@@ -57,6 +64,29 @@ def test_video_feed_route_is_registered(app):
         "/enrolled-persons",
         "/health",
     }.issubset(routes)
+
+
+def test_create_app_registers_feature_blueprints(app):
+    assert set(app.blueprints) == {
+        "dashboard",
+        "recognition",
+        "enrollment",
+        "attendance",
+    }
+
+
+def test_legacy_entrypoints_keep_exporting_the_flask_app(tmp_path, monkeypatch):
+    monkeypatch.setattr(face_attendance_module, "BASE_DIR", tmp_path)
+    sys.modules.pop("web_app", None)
+    web_entrypoint = importlib.import_module("web_app")
+    assert isinstance(web_entrypoint.app, Flask)
+
+    package_app_module = importlib.import_module("src.face_attendance_app")
+    monkeypatch.setattr(package_app_module, "BASE_DIR", tmp_path / "package")
+    sys.modules.pop("src.main", None)
+    package_entrypoint = importlib.import_module("src.main")
+
+    assert isinstance(package_entrypoint.app, Flask)
 
 
 def test_health_endpoint(app):
@@ -126,7 +156,12 @@ def test_create_app_does_not_open_camera(monkeypatch):
     def fail_if_camera_is_opened(*args, **kwargs):
         raise AssertionError("create_app() must not open the camera")
 
+    def fail_if_model_is_used(*args, **kwargs):
+        raise AssertionError("create_app() must not run face recognition")
+
     monkeypatch.setattr(cv2, "VideoCapture", fail_if_camera_is_opened)
+    monkeypatch.setattr(face_attendance_module, "detect_faces", fail_if_model_is_used)
+    monkeypatch.setattr(face_attendance_module, "encode_faces", fail_if_model_is_used)
 
     app = create_app()
 
@@ -180,8 +215,9 @@ def test_video_feed_marks_person_once_per_day(tmp_path, monkeypatch):
         lambda *_args, **_kwargs: ("Alice", 0.2),
     )
 
-    response = app.view_functions["video_feed"]()
+    response = app.test_client().get("/video_feed", buffered=False)
     list(response.response)
+    response.close()
 
     attendance_system = app.config["ATTENDANCE_SYSTEM"]
     attendance = pd.read_csv(attendance_system.get_attendance_file())
