@@ -11,6 +11,9 @@ import pytest
 
 import attendance as attendance_module
 import face_attendance_app as app_module
+from attendance_web import attendance as attendance_routes
+from attendance_web import dashboard as dashboard_routes
+from attendance_web import recognition as recognition_routes
 from attendance_services.ports import KnownFaceImage
 from modules.identification import match_face
 
@@ -93,7 +96,7 @@ def test_index_keeps_primary_dashboard_controls():
 
 
 def test_health_response_keeps_timestamp_format(isolated_app, monkeypatch):
-    monkeypatch.setattr(app_module, "datetime", FrozenDateTime)
+    monkeypatch.setattr(dashboard_routes, "datetime", FrozenDateTime)
 
     response = isolated_app.test_client().get("/health")
 
@@ -126,7 +129,7 @@ def test_recognize_returns_multiple_known_faces_and_marks_duplicates_once(
             np.zeros(128, dtype=np.float32),
         ],
     )
-    monkeypatch.setattr(app_module, "datetime", FrozenDateTime)
+    monkeypatch.setattr(recognition_routes, "datetime", FrozenDateTime)
 
     response = isolated_app.test_client().post(
         "/recognize",
@@ -351,7 +354,7 @@ def test_enroll_save_failure_keeps_500_response(isolated_app, monkeypatch):
 def test_attendance_returns_empty_list_when_storage_summary_fails(
     isolated_app, monkeypatch
 ):
-    monkeypatch.setattr(app_module, "datetime", FrozenDateTime)
+    monkeypatch.setattr(attendance_routes, "datetime", FrozenDateTime)
     monkeypatch.setattr(
         isolated_app.config["ATTENDANCE_SYSTEM"],
         "get_attendance_summary",
@@ -508,8 +511,8 @@ def test_video_feed_loads_known_faces_once_for_the_stream(
         lambda: session_loads.append("loaded") or object(),
     )
     monkeypatch.setattr(
-        app_module,
-        "_recognize_frame",
+        recognition_routes,
+        "recognize_frame",
         lambda frame, _session, _scale: (frame, []),
     )
 
@@ -553,7 +556,9 @@ def test_video_feed_releases_camera_when_frame_processing_raises(
     def fail_processing(*_args, **_kwargs):
         raise RuntimeError("simulated frame processing failure")
 
-    monkeypatch.setattr(app_module, "_recognize_frame", fail_processing)
+    monkeypatch.setattr(
+        recognition_routes, "recognize_frame", fail_processing
+    )
 
     with pytest.raises(RuntimeError, match="simulated frame processing failure"):
         isolated_app.test_client().get("/video_feed", buffered=False)

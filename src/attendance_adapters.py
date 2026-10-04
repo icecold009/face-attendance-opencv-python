@@ -11,9 +11,6 @@ import cv2
 import numpy as np
 
 from attendance_services.ports import FaceLocation, KnownFaceImage
-from modules.detection import detect_faces
-from modules.encoding import encode_faces
-from modules.identification import match_face
 
 
 class FaceRecognitionAdapter:
@@ -23,18 +20,32 @@ class FaceRecognitionAdapter:
         encoder: Callable[..., Sequence[np.ndarray]] | None = None,
         matcher: Callable[..., tuple[str, float]] | None = None,
     ) -> None:
-        self._detector = detector or detect_faces
-        self._encoder = encoder or encode_faces
-        self._matcher = matcher or match_face
+        self._detector = detector
+        self._encoder = encoder
+        self._matcher = matcher
 
     def detect_faces(self, rgb_image: np.ndarray, model: str):
-        return self._detector(rgb_image, model=model)
+        if self._detector is not None:
+            return self._detector(rgb_image, model=model)
+        from modules.detection import detect_faces
+
+        return detect_faces(rgb_image, model=model)
 
     def encode_faces(self, rgb_image: np.ndarray, face_locations):
-        return self._encoder(rgb_image, face_locations)
+        if self._encoder is not None:
+            return self._encoder(rgb_image, face_locations)
+        from modules.encoding import encode_faces
+
+        return encode_faces(rgb_image, face_locations)
 
     def match_face(self, face_encoding, known_encodings, known_labels, tolerance):
-        return self._matcher(
+        if self._matcher is None:
+            from modules.identification import match_face
+
+            matcher = match_face
+        else:
+            matcher = self._matcher
+        return matcher(
             face_encoding,
             known_encodings,
             known_labels,
