@@ -1,10 +1,9 @@
 import argparse
 import base64
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Tuple, List
+from typing import List, Tuple
 
 import cv2
 import numpy as np
@@ -19,61 +18,17 @@ for import_path in (Path(__file__).resolve().parent, BASE_DIR):
 
 from config import load_config
 from attendance import AttendanceSystem
+from attendance_adapters import FaceRecognitionAdapter, OpenCVImageStore, SystemClock
+from attendance_services.enrollment import (
+    EnrollmentService,
+    EnrollmentStatus,
+    TimestampEnrollmentIdGenerator,
+    normalize_person_name,
+)
+from attendance_services.recognition import RecognitionSession, RecognitionService
 from modules.detection import detect_faces
 from modules.encoding import encode_faces
 from modules.identification import match_face
-
-def _load_known_faces_from_folder(
-    folder_path: Path,
-    detection_model: str,
-) -> Tuple[List[np.ndarray], List[str]]:
-    """
-    Load known face encodings and labels from a folder structure.
-
-    Expected structure:
-        folder_path/
-            person1/ img1.jpg, img2.jpg, ...
-            person2/ img1.jpg, ...
-
-    This runs only when the app actually starts, not at import time.
-    """
-    known_encodings: List[np.ndarray] = []
-    known_labels: List[str] = []
-
-    if not folder_path.exists():
-        # In CI or fresh environments, just return empty lists
-        return known_encodings, known_labels
-
-    for person_name in os.listdir(folder_path):
-        person_dir = folder_path / person_name
-        if not person_dir.is_dir():
-            continue
-        for fname in os.listdir(person_dir):
-            img_path = person_dir / fname
-            img = cv2.imread(str(img_path))
-            if img is None:
-                continue
-            rgb_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            boxes = detect_faces(rgb_img, model=detection_model)
-            encs = encode_faces(rgb_img, boxes)
-            if not encs:
-                continue
-            known_encodings.append(encs[0])
-            known_labels.append(person_name)
-
-    return known_encodings, known_labels
-
-
-def _stack_known_encodings(
-    known_encodings: List[np.ndarray],
-) -> np.ndarray:
-    if not known_encodings:
-        return np.empty((0, 128), dtype=np.float32)
-    return np.stack(
-        [np.asarray(encoding, dtype=np.float32) for encoding in known_encodings],
-        axis=0,
-    )
-
 
 def _decode_frame(frame_b64: str) -> np.ndarray | None:
     if frame_b64.startswith("data:") and "," in frame_b64:
@@ -88,22 +43,14 @@ def _decode_frame(frame_b64: str) -> np.ndarray | None:
 
 
 def _safe_person_name(name: str) -> str | None:
-    normalized = name.strip()
-    if not normalized or normalized in {".", ".."}:
-        return None
-    if "/" in normalized or "\\" in normalized:
-        return None
-    return normalized
+    """Compatibility wrapper for the service's pure name validation rule."""
+    return normalize_person_name(name)
 
 
 def _recognize_frame(
     frame: np.ndarray,
-    known_encodings: np.ndarray,
-    known_labels: List[str],
-    detection_model: str,
-    min_confidence: float,
+    recognition_session: RecognitionSession,
     frame_resize_scale: float,
-    attendance_system: AttendanceSystem,
 ) -> Tuple[np.ndarray, List[str]]:
     small_frame = cv2.resize(
         frame,
@@ -112,23 +59,11 @@ def _recognize_frame(
         fy=frame_resize_scale,
     )
     rgb_small_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
-    face_locations = detect_faces(rgb_small_frame, model=detection_model)
-    face_encodings = encode_faces(rgb_small_frame, face_locations)
-    recognized_names: List[str] = []
+    recognition_result = recognition_session.recognize(rgb_small_frame)
 
-    for face_encoding, (top, right, bottom, left) in zip(
-        face_encodings, face_locations
-    ):
-        if known_encodings.size == 0:
-            name, dist = "Unknown", 1.0
-        else:
-            name, dist = match_face(
-                face_encoding,
-                known_encodings,
-                known_labels,
-                tolerance=min_confidence,
-            )
-
+    for face_match in recognition_result.matches:
+        top, right, bottom, left = face_match.location
+        name = face_match.name
         inv_scale = 1.0 / frame_resize_scale
         top = int(top * inv_scale)
         right = int(right * inv_scale)
@@ -137,7 +72,7 @@ def _recognize_frame(
 
         color = (0, 255, 0) if name != "Unknown" else (0, 0, 255)
         cv2.rectangle(frame, (left, top), (right, bottom), color, 2)
-        label = f"{name} ({dist:.2f})"
+        label = f"{name} ({face_match.distance:.2f})"
         cv2.rectangle(
             frame,
             (left, bottom - 20),
@@ -155,11 +90,7 @@ def _recognize_frame(
             1,
         )
 
-        if name != "Unknown":
-            recognized_names.append(name)
-            attendance_system.mark_attendance(name)
-
-    return frame, recognized_names
+    return frame, list(recognition_result.recognized_names)
 
 
 def create_app() -> Flask:
@@ -184,6 +115,31 @@ def create_app() -> Flask:
 
     known_faces_folder = BASE_DIR / "ImagesAttendance"
 
+    # Adapter callbacks resolve the module-level functions when invoked. This
+    # keeps the application's existing seams replaceable in hardware-free tests.
+    recognizer = FaceRecognitionAdapter(
+        detector=lambda image, model: detect_faces(image, model=model),
+        encoder=lambda image, locations: encode_faces(image, locations),
+        matcher=lambda encoding, known, labels, tolerance: match_face(
+            encoding, known, labels, tolerance=tolerance
+        ),
+    )
+    image_store = OpenCVImageStore(known_faces_folder)
+    recognition_service = RecognitionService(
+        recognizer,
+        image_store,
+        attendance_system,
+        detection_model,
+        float(min_confidence),
+    )
+    enrollment_service = EnrollmentService(
+        recognizer,
+        image_store,
+        SystemClock(now_provider=lambda: datetime.now()),
+        TimestampEnrollmentIdGenerator(),
+        detection_model,
+    )
+
     app = Flask(__name__, template_folder=str(BASE_DIR / "templates"))
 
     # Store config in app context so routes can use it
@@ -193,17 +149,14 @@ def create_app() -> Flask:
     app.config["ATTENDANCE_PATH"] = attendance_path
     app.config["ATTENDANCE_SYSTEM"] = attendance_system
     app.config["KNOWN_FACES_FOLDER"] = known_faces_folder
+    app.config["IMAGE_STORE"] = image_store
+    app.config["RECOGNIZER"] = recognizer
+    app.config["RECOGNITION_SERVICE"] = recognition_service
+    app.config["ENROLLMENT_SERVICE"] = enrollment_service
 
     @app.route("/")
     def index():
         return render_template("index.html")
-
-    def load_known_face_data() -> Tuple[np.ndarray, List[str]]:
-        known_encodings, known_labels = _load_known_faces_from_folder(
-            app.config["KNOWN_FACES_FOLDER"],
-            app.config["DETECTION_MODEL"],
-        )
-        return _stack_known_encodings(known_encodings), known_labels
 
     def generate_frames():
         """
@@ -216,7 +169,7 @@ def create_app() -> Flask:
         video_capture = cv2.VideoCapture(0)
 
         # Load known faces on demand
-        known_encodings_arr, known_labels = load_known_face_data()
+        recognition_session = app.config["RECOGNITION_SERVICE"].load_session()
 
         try:
             while True:
@@ -226,12 +179,8 @@ def create_app() -> Flask:
 
                 frame, _recognized_names = _recognize_frame(
                     frame,
-                    known_encodings_arr,
-                    known_labels,
-                    app.config["DETECTION_MODEL"],
-                    app.config["MIN_CONFIDENCE"],
+                    recognition_session,
                     app.config["FRAME_RESIZE_SCALE"],
-                    attendance_system,
                 )
 
                 ret, buffer = cv2.imencode(".jpg", frame)
@@ -262,15 +211,11 @@ def create_app() -> Flask:
         if frame is None:
             return jsonify({"error": "Failed to decode frame"}), 400
 
-        known_encodings, known_labels = load_known_face_data()
+        recognition_session = app.config["RECOGNITION_SERVICE"].load_session()
         annotated_frame, recognized_names = _recognize_frame(
             frame,
-            known_encodings,
-            known_labels,
-            app.config["DETECTION_MODEL"],
-            app.config["MIN_CONFIDENCE"],
+            recognition_session,
             app.config["FRAME_RESIZE_SCALE"],
-            attendance_system,
         )
         encoded, buffer = cv2.imencode(".jpg", annotated_frame)
         if not encoded:
@@ -299,27 +244,22 @@ def create_app() -> Flask:
         if frame is None:
             return jsonify({"error": "Failed to decode frame"}), 400
 
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        face_locations = detect_faces(
-            rgb_frame,
-            model=app.config["DETECTION_MODEL"],
-        )
-        if not encode_faces(rgb_frame, face_locations):
-            return jsonify({"error": "No face detected"}), 400
-
         person_name = _safe_person_name(name)
-        person_dir = app.config["KNOWN_FACES_FOLDER"] / person_name
-        person_dir.mkdir(parents=True, exist_ok=True)
-        image_path = person_dir / (
-            datetime.now().strftime("%Y%m%d_%H%M%S_%f") + ".jpg"
+        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        result = app.config["ENROLLMENT_SERVICE"].enroll(
+            person_name,
+            rgb_frame,
+            frame,
         )
-        if not cv2.imwrite(str(image_path), frame):
+        if result.status is EnrollmentStatus.NO_FACE:
+            return jsonify({"error": "No face detected"}), 400
+        if result.status is EnrollmentStatus.SAVE_FAILED:
             return jsonify({"error": "Failed to save enrollment image"}), 500
 
         return jsonify(
             {
                 "success": True,
-                "message": f"Successfully enrolled {person_name}",
+                "message": f"Successfully enrolled {result.person_name}",
             }
         )
 
@@ -338,12 +278,7 @@ def create_app() -> Flask:
 
     @app.route("/enrolled-persons", methods=["GET"])
     def get_enrolled_persons():
-        known_faces_folder = app.config["KNOWN_FACES_FOLDER"]
-        persons = sorted(
-            directory.name
-            for directory in known_faces_folder.iterdir()
-            if directory.is_dir()
-        ) if known_faces_folder.exists() else []
+        persons = app.config["IMAGE_STORE"].list_people()
         return jsonify({"success": True, "persons": persons, "count": len(persons)})
 
     @app.route("/health", methods=["GET"])

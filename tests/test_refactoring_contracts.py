@@ -11,6 +11,7 @@ import pytest
 
 import attendance as attendance_module
 import face_attendance_app as app_module
+from attendance_services.ports import KnownFaceImage
 from modules.identification import match_face
 
 
@@ -42,6 +43,18 @@ def jpeg_base64():
     success, buffer = cv2.imencode(".jpg", frame)
     assert success
     return base64.b64encode(buffer.tobytes()).decode("ascii")
+
+
+def provide_known_faces(app, monkeypatch, labels):
+    samples = [
+        KnownFaceImage(label, np.zeros((4, 4, 3), dtype=np.uint8))
+        for label in labels
+    ]
+    monkeypatch.setattr(
+        app.config["IMAGE_STORE"],
+        "iter_known_face_images",
+        lambda: iter(samples),
+    )
 
 
 def test_routes_keep_their_current_http_methods(isolated_app):
@@ -94,11 +107,7 @@ def test_health_response_keeps_timestamp_format(isolated_app, monkeypatch):
 def test_recognize_returns_multiple_known_faces_and_marks_duplicates_once(
     isolated_app, monkeypatch
 ):
-    monkeypatch.setattr(
-        app_module,
-        "_load_known_faces_from_folder",
-        lambda *_args: ([np.zeros(128, dtype=np.float32)], ["Alice"]),
-    )
+    provide_known_faces(isolated_app, monkeypatch, ["Alice"])
     monkeypatch.setattr(
         app_module,
         "detect_faces",
@@ -145,9 +154,7 @@ def test_recognize_returns_multiple_known_faces_and_marks_duplicates_once(
 
 
 def test_recognize_no_faces_returns_empty_names(isolated_app, monkeypatch):
-    monkeypatch.setattr(
-        app_module, "_load_known_faces_from_folder", lambda *_args: ([], [])
-    )
+    provide_known_faces(isolated_app, monkeypatch, [])
     monkeypatch.setattr(
         app_module,
         "detect_faces",
@@ -164,6 +171,30 @@ def test_recognize_no_faces_returns_empty_names(isolated_app, monkeypatch):
     assert response.get_json()["recognized_names"] == []
 
 
+def test_recognize_loads_a_fresh_known_face_session_per_request(
+    isolated_app, monkeypatch
+):
+    loads = []
+    monkeypatch.setattr(
+        isolated_app.config["IMAGE_STORE"],
+        "iter_known_face_images",
+        lambda: loads.append("loaded") or iter(()),
+    )
+    monkeypatch.setattr(
+        app_module, "detect_faces", lambda *_args, **_kwargs: []
+    )
+    monkeypatch.setattr(app_module, "encode_faces", lambda *_args: [])
+    client = isolated_app.test_client()
+
+    responses = [
+        client.post("/recognize", json={"frame": jpeg_base64()})
+        for _ in range(2)
+    ]
+
+    assert [response.status_code for response in responses] == [200, 200]
+    assert loads == ["loaded", "loaded"]
+
+
 def test_recognize_malformed_base64_keeps_400_error(isolated_app):
     response = isolated_app.test_client().post(
         "/recognize",
@@ -176,9 +207,7 @@ def test_recognize_malformed_base64_keeps_400_error(isolated_app):
 
 def test_recognize_encode_failure_keeps_500_error(isolated_app, monkeypatch):
     frame = jpeg_base64()
-    monkeypatch.setattr(
-        app_module, "_load_known_faces_from_folder", lambda *_args: ([], [])
-    )
+    provide_known_faces(isolated_app, monkeypatch, [])
     monkeypatch.setattr(
         app_module, "detect_faces", lambda *_args, **_kwargs: []
     )
@@ -440,11 +469,7 @@ def test_video_feed_releases_camera_after_normal_end(isolated_app, monkeypatch):
     monkeypatch.setattr(
         app_module.cv2, "destroyAllWindows", lambda: destroyed.append(True)
     )
-    monkeypatch.setattr(
-        app_module,
-        "_load_known_faces_from_folder",
-        lambda *_args: ([], []),
-    )
+    provide_known_faces(isolated_app, monkeypatch, [])
 
     response = isolated_app.test_client().get("/video_feed", buffered=False)
     body = list(response.response)
@@ -455,6 +480,45 @@ def test_video_feed_releases_camera_after_normal_end(isolated_app, monkeypatch):
     assert body == []
     assert capture.releases == 1
     assert destroyed == [True]
+
+
+def test_video_feed_loads_known_faces_once_for_the_stream(
+    isolated_app, monkeypatch
+):
+    class FakeVideoCapture:
+        def __init__(self):
+            self.reads = 0
+
+        def read(self):
+            self.reads += 1
+            return (self.reads <= 3, np.zeros((40, 40, 3), dtype=np.uint8))
+
+        def release(self):
+            pass
+
+    capture = FakeVideoCapture()
+    session_loads = []
+    monkeypatch.setattr(
+        app_module.cv2, "VideoCapture", lambda _index: capture
+    )
+    monkeypatch.setattr(app_module.cv2, "destroyAllWindows", lambda: None)
+    monkeypatch.setattr(
+        isolated_app.config["RECOGNITION_SERVICE"],
+        "load_session",
+        lambda: session_loads.append("loaded") or object(),
+    )
+    monkeypatch.setattr(
+        app_module,
+        "_recognize_frame",
+        lambda frame, _session, _scale: (frame, []),
+    )
+
+    response = isolated_app.test_client().get("/video_feed", buffered=False)
+    list(response.response)
+    response.close()
+
+    assert session_loads == ["loaded"]
+    assert capture.reads == 4
 
 
 def test_video_feed_releases_camera_when_frame_processing_raises(
@@ -484,11 +548,7 @@ def test_video_feed_releases_camera_when_frame_processing_raises(
     monkeypatch.setattr(
         app_module.cv2, "destroyAllWindows", lambda: destroyed.append(True)
     )
-    monkeypatch.setattr(
-        app_module,
-        "_load_known_faces_from_folder",
-        lambda *_args: ([], []),
-    )
+    provide_known_faces(isolated_app, monkeypatch, [])
 
     def fail_processing(*_args, **_kwargs):
         raise RuntimeError("simulated frame processing failure")
