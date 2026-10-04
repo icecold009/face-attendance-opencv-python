@@ -27,6 +27,8 @@ from attendance_services.recognition import RecognitionService
 from attendance_web import register_blueprints
 from attendance_web.common import decode_frame, recognize_frame
 from config import load_config
+from frame_source import OpenCVFrameSource
+
 
 def detect_faces(rgb_image, model="hog"):
     """Load the face detector only when an operation needs it."""
@@ -112,6 +114,7 @@ def create_app() -> Flask:
             "RECOGNIZER": recognizer,
             "RECOGNITION_SERVICE": recognition_service,
             "ENROLLMENT_SERVICE": enrollment_service,
+            "FRAME_SOURCE_FACTORY": lambda: OpenCVFrameSource(camera_index=0),
         }
     )
     register_blueprints(app)

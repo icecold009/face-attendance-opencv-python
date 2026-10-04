@@ -18,32 +18,32 @@ recognition_blueprint = Blueprint("recognition", __name__)
 def video_feed():
     recognition_service = current_app.config["RECOGNITION_SERVICE"]
     frame_resize_scale = current_app.config["FRAME_RESIZE_SCALE"]
+    frame_source_factory = current_app.config["FRAME_SOURCE_FACTORY"]
 
     def generate_frames():
-        # Camera init stays inside the generator, after the route is requested.
-        video_capture = cv2.VideoCapture(0)
-        recognition_session = recognition_service.load_session()
-
         try:
-            while True:
-                success, frame = video_capture.read()
-                if not success:
-                    break
+            with frame_source_factory() as frame_source:
+                recognition_session = recognition_service.load_session()
+                while True:
+                    success, frame = frame_source.read()
+                    if not success:
+                        break
 
-                frame, _recognized_names = recognize_frame(
-                    frame,
-                    recognition_session,
-                    frame_resize_scale,
-                )
+                    frame, _recognized_names = recognize_frame(
+                        frame,
+                        recognition_session,
+                        frame_resize_scale,
+                    )
 
-                ret, buffer = cv2.imencode(".jpg", frame)
-                frame_bytes = buffer.tobytes()
-                yield (
-                    b"--frame\r\n"
-                    b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
-                )
+                    ret, buffer = cv2.imencode(".jpg", frame)
+                    frame_bytes = buffer.tobytes()
+                    yield (
+                        b"--frame\r\n"
+                        b"Content-Type: image/jpeg\r\n\r\n"
+                        + frame_bytes
+                        + b"\r\n"
+                    )
         finally:
-            video_capture.release()
             cv2.destroyAllWindows()
 
     return Response(

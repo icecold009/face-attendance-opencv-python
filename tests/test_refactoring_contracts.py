@@ -1,4 +1,4 @@
-"""Behavioral contracts captured before extracting attendance services and routes."""
+"""Behavioral contracts for the attendance app's refactoring packages."""
 
 import base64
 import socket
@@ -453,22 +453,12 @@ def test_match_face_keeps_unknown_result_above_tolerance():
     assert distance == pytest.approx(np.sqrt(128))
 
 
-def test_video_feed_releases_camera_after_normal_end(isolated_app, monkeypatch):
-    class FakeVideoCapture:
-        def __init__(self):
-            self.releases = 0
-
-        def read(self):
-            return False, None
-
-        def release(self):
-            self.releases += 1
-
-    capture = FakeVideoCapture()
+def test_video_feed_releases_frame_source_after_normal_end(
+    isolated_app, monkeypatch, fake_frame_source_factory
+):
+    factory, sources = fake_frame_source_factory
+    isolated_app.config["FRAME_SOURCE_FACTORY"] = factory
     destroyed = []
-    monkeypatch.setattr(
-        app_module.cv2, "VideoCapture", lambda _index: capture
-    )
     monkeypatch.setattr(
         app_module.cv2, "destroyAllWindows", lambda: destroyed.append(True)
     )
@@ -481,29 +471,23 @@ def test_video_feed_releases_camera_after_normal_end(isolated_app, monkeypatch):
     assert response.status_code == 200
     assert response.mimetype == "multipart/x-mixed-replace"
     assert body == []
-    assert capture.releases == 1
+    assert len(sources) == 1
+    assert sources[0].enter_count == 1
+    assert sources[0].read_count == 1
+    assert sources[0].release_count == 1
     assert destroyed == [True]
 
 
 def test_video_feed_loads_known_faces_once_for_the_stream(
-    isolated_app, monkeypatch
+    isolated_app, monkeypatch, fake_frame_source_factory
 ):
-    class FakeVideoCapture:
-        def __init__(self):
-            self.reads = 0
-
-        def read(self):
-            self.reads += 1
-            return (self.reads <= 3, np.zeros((40, 40, 3), dtype=np.uint8))
-
-        def release(self):
-            pass
-
-    capture = FakeVideoCapture()
+    factory, sources = fake_frame_source_factory
+    frames = [
+        (True, np.zeros((40, 40, 3), dtype=np.uint8))
+        for _ in range(3)
+    ]
+    isolated_app.config["FRAME_SOURCE_FACTORY"] = lambda: factory(frames=frames)
     session_loads = []
-    monkeypatch.setattr(
-        app_module.cv2, "VideoCapture", lambda _index: capture
-    )
     monkeypatch.setattr(app_module.cv2, "destroyAllWindows", lambda: None)
     monkeypatch.setattr(
         isolated_app.config["RECOGNITION_SERVICE"],
@@ -521,33 +505,19 @@ def test_video_feed_loads_known_faces_once_for_the_stream(
     response.close()
 
     assert session_loads == ["loaded"]
-    assert capture.reads == 4
+    assert sources[0].read_count == 4
+    assert sources[0].release_count == 1
 
 
-def test_video_feed_releases_camera_when_frame_processing_raises(
-    isolated_app, monkeypatch
+def test_video_feed_releases_frame_source_when_processing_raises(
+    isolated_app, monkeypatch, fake_frame_source_factory
 ):
     frame = np.zeros((40, 40, 3), dtype=np.uint8)
-
-    class FakeVideoCapture:
-        def __init__(self):
-            self.releases = 0
-            self.reads = 0
-
-        def read(self):
-            self.reads += 1
-            if self.reads == 1:
-                return True, frame.copy()
-            return False, None
-
-        def release(self):
-            self.releases += 1
-
-    capture = FakeVideoCapture()
-    destroyed = []
-    monkeypatch.setattr(
-        app_module.cv2, "VideoCapture", lambda _index: capture
+    factory, sources = fake_frame_source_factory
+    isolated_app.config["FRAME_SOURCE_FACTORY"] = lambda: factory(
+        frames=[(True, frame.copy())]
     )
+    destroyed = []
     monkeypatch.setattr(
         app_module.cv2, "destroyAllWindows", lambda: destroyed.append(True)
     )
@@ -563,5 +533,91 @@ def test_video_feed_releases_camera_when_frame_processing_raises(
     with pytest.raises(RuntimeError, match="simulated frame processing failure"):
         isolated_app.test_client().get("/video_feed", buffered=False)
 
-    assert capture.releases == 1
+    assert sources[0].release_count == 1
     assert destroyed == [True]
+
+
+def test_video_feed_releases_source_after_read_error(
+    isolated_app, monkeypatch, fake_frame_source_factory
+):
+    factory, sources = fake_frame_source_factory
+    isolated_app.config["FRAME_SOURCE_FACTORY"] = lambda: factory(
+        read_error=RuntimeError("simulated camera read failure")
+    )
+    monkeypatch.setattr(app_module.cv2, "destroyAllWindows", lambda: None)
+
+    with pytest.raises(RuntimeError, match="simulated camera read failure"):
+        isolated_app.test_client().get("/video_feed", buffered=False)
+
+    assert sources[0].read_count == 1
+    assert sources[0].release_count == 1
+
+
+def test_video_feed_releases_source_when_session_setup_raises(
+    isolated_app, monkeypatch, fake_frame_source_factory
+):
+    factory, sources = fake_frame_source_factory
+    isolated_app.config["FRAME_SOURCE_FACTORY"] = factory
+    monkeypatch.setattr(app_module.cv2, "destroyAllWindows", lambda: None)
+
+    def fail_session_setup():
+        raise RuntimeError("simulated recognition setup failure")
+
+    monkeypatch.setattr(
+        isolated_app.config["RECOGNITION_SERVICE"], "load_session", fail_session_setup
+    )
+    with pytest.raises(RuntimeError, match="simulated recognition setup failure"):
+        isolated_app.test_client().get("/video_feed", buffered=False)
+
+    assert sources[0].enter_count == 1
+    assert sources[0].release_count == 1
+
+
+def test_video_feed_releases_source_when_stream_is_cancelled(
+    isolated_app, monkeypatch, fake_frame_source_factory
+):
+    factory, sources = fake_frame_source_factory
+    frames = [
+        (True, np.zeros((40, 40, 3), dtype=np.uint8))
+        for _ in range(2)
+    ]
+    isolated_app.config["FRAME_SOURCE_FACTORY"] = lambda: factory(frames=frames)
+    monkeypatch.setattr(app_module.cv2, "destroyAllWindows", lambda: None)
+    monkeypatch.setattr(
+        recognition_routes, "recognize_frame", lambda frame, _session, _scale: (frame, [])
+    )
+
+    response = isolated_app.test_client().get("/video_feed", buffered=False)
+    first_chunk = next(response.response)
+    response.close()
+
+    assert first_chunk.startswith(b"--frame\r\n")
+    assert sources[0].read_count == 1
+    assert sources[0].release_count == 1
+
+
+def test_concurrent_video_feeds_own_distinct_sources(
+    isolated_app, monkeypatch, fake_frame_source_factory
+):
+    factory, sources = fake_frame_source_factory
+    frames = [(True, np.zeros((40, 40, 3), dtype=np.uint8))]
+    isolated_app.config["FRAME_SOURCE_FACTORY"] = lambda: factory(frames=frames)
+    monkeypatch.setattr(app_module.cv2, "destroyAllWindows", lambda: None)
+    monkeypatch.setattr(
+        recognition_routes, "recognize_frame", lambda frame, _session, _scale: (frame, [])
+    )
+
+    client = isolated_app.test_client()
+    first = client.get("/video_feed", buffered=False)
+    second = client.get("/video_feed", buffered=False)
+    first_chunk = next(first.response)
+    second_chunk = next(second.response)
+    first.close()
+    second.close()
+
+    assert first_chunk.startswith(b"--frame\r\n")
+    assert second_chunk.startswith(b"--frame\r\n")
+    assert len(sources) == 2
+    assert sources[0] is not sources[1]
+    assert [source.enter_count for source in sources] == [1, 1]
+    assert [source.release_count for source in sources] == [1, 1]

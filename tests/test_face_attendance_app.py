@@ -177,6 +177,9 @@ def test_video_feed_marks_person_once_per_day(tmp_path, monkeypatch):
         def __init__(self):
             self.frames_read = 0
 
+        def isOpened(self):
+            return True
+
         def read(self):
             if self.frames_read >= 10:
                 return False, None
